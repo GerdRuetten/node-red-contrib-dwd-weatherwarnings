@@ -1,0 +1,101 @@
+<script type="text/javascript">
+    RED.nodes.registerType('dwd-weatherwarnings', {
+        category: 'function',
+        color: '#cfd8dc',
+        defaults: {
+            name: { value: "" },
+            region: { value: "", required: true },          // "805362004 Stadt Bedburg"
+            allowNameFallback: { value: true },             // ✔ Namens-Fallback erlauben
+            extraAreas: { value: "" },                      // Kommagetrennte Namen
+            runOnDeploy: { value: true },                   // ✔ Beim Deploy sofort abrufen
+            autoRefreshSeconds: { value: 0, validate: function(v){
+                    var n = Number(v);
+                    return Number.isFinite(n) && n >= 0 && n <= 86400; // 0..24h
+                }},
+            allowStale: { value: true },                    // ✔ Stale erlauben (Cache-Fallback)
+            onlyActiveFuture: { value: true }               // ✔ Nur aktive & zukünftige Meldungen
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "font-awesome/fa-exclamation-triangle",
+        label: function () {
+            return this.name || "DWD-Weatherwarnings";
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="dwd-weatherwarnings">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="optional">
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-region"><i class="fa fa-map-marker"></i> Region</label>
+        <input type="text" id="node-input-region" placeholder="805362004 Stadt Bedburg">
+        <p class="form-tips">9-stellige WARNCELLID mit Namen. Die ID vor dem ersten Leerzeichen wird verwendet.</p>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-allowNameFallback"><i class="fa fa-filter"></i> Name-Fallback</label>
+        <input type="checkbox" id="node-input-allowNameFallback" style="width:auto; margin-left:8px;">
+        <span style="margin-left:6px;">Gebiets-Namensabgleich erlauben (areaDesc)</span>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-extraAreas"><i class="fa fa-list"></i> Zusätzliche Gebiets­namen</label>
+        <input type="text" id="node-input-extraAreas" placeholder="Rhein-Erft-Kreis,Bedburg">
+        <p class="form-tips">Kommagetrennt. Wird zusätzlich zum Regionsnamen fürs Namensmatching genutzt.</p>
+    </div>
+
+    <hr/>
+
+    <div class="form-row">
+        <label for="node-input-runOnDeploy"><i class="fa fa-play-circle"></i> Beim Deploy sofort abrufen</label>
+        <input type="checkbox" id="node-input-runOnDeploy" style="width:auto; margin-left:8px;">
+        <span style="margin-left:6px;">Direkt nach Deploy/Neustart einen Abruf ausführen</span>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-autoRefreshSeconds"><i class="fa fa-clock-o"></i> Auto-Aktualisierung (Sek.)</label>
+        <input type="number" id="node-input-autoRefreshSeconds" min="0" max="86400" step="1" placeholder="0 = aus">
+        <p class="form-tips">Intervall für automatische Abrufe ohne Inject-Node. 0 = deaktiviert.</p>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-allowStale"><i class="fa fa-shield"></i> Stale erlauben</label>
+        <input type="checkbox" id="node-input-allowStale" style="width:auto; margin-left:8px;">
+        <span style="margin-left:6px;">Bei XML-/HTTP-Fehlern letzten erfolgreichen Stand liefern</span>
+        <p class="form-tips">Bei kaputtem Feed (z. B. „Unclosed root tag“) liefert der Node den letzten Cache-Stand (<code>_meta.stale=true</code>).</p>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-onlyActiveFuture"><i class="fa fa-hourglass-half"></i> Nur aktive und zukünftige Meldungen</label>
+        <input type="checkbox" id="node-input-onlyActiveFuture" style="width:auto; margin-left:8px;">
+        <span style="margin-left:6px;">Abgelaufene Meldungen (past=true) ausfiltern</span>
+        <p class="form-tips">Wenn aktiv, enthält die Ausgabe nur Meldungen, die aktuell laufen oder in der Zukunft liegen.</p>
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="dwd-weatherwarnings">
+    <p><b>DWD-Weatherwarnings</b> ruft den DWD CAP-Atom-Feed ab (inkl. Link-Follow der Einzelmeldungen), filtert nach Gemeinde-WARNCELLID und
+    fällt bei Bedarf auf Kreis-ID bzw. Gebietsname (areaDesc) zurück.</p>
+
+    <h3>Optionen</h3>
+    <ul>
+        <li><b>Region</b> – z. B. <code>805362004 Stadt Bedburg</code></li>
+        <li><b>Name-Fallback</b> – erlaubt Matching über Gebietsname(n), wenn keine WARNCELLID in der Meldung steht</li>
+        <li><b>Zusätzliche Gebiets­namen</b> – z. B. <code>Rhein-Erft-Kreis,Bedburg</code></li>
+        <li><b>Beim Deploy sofort abrufen</b> – führt direkt nach Deploy/Restart einen Abruf aus</li>
+        <li><b>Auto-Aktualisierung (Sek.)</b> – periodischer Abruf ohne Inject-Node (0 = aus)</li>
+        <li><b>Stale erlauben</b> – bei XML-/HTTP-Fehlern den letzten bekannten Stand aus Cache liefern</li>
+        <li><b>Nur aktive und zukünftige Meldungen</b> – filtert abgelaufene Meldungen konsequent heraus</li>
+    </ul>
+
+    <h3>Ausgabe</h3>
+    <ul>
+        <li><code>msg.payload</code> – höchste Warnstufe (0–5) (nach allen Filtern)</li>
+        <li><code>msg.count</code>, <code>msg.events</code>, <code>msg.warnings</code>, <code>msg.html</code></li>
+        <li><code>msg._meta</code> – u. a. <code>matched</code> (gemeinde|kreis|name), <code>regionCode</code>, <code>kreisId</code>, <code>stale</code>, <code>onlyActiveFuture</code></li>
+    </ul>
+</script>
