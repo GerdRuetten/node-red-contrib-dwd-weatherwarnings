@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # wichtig für Tags / latest
+          fetch-depth: 0  # wichtig für Tags, generate_release_notes, latest-Tag
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -33,25 +33,25 @@ jobs:
 
       - name: Show versions
         run: |
-          echo "Ref:        $GITHUB_REF"
-          echo "Ref name:   $GITHUB_REF_NAME"
+          echo "Ref:      $GITHUB_REF"
+          echo "Ref name: $GITHUB_REF_NAME"
           node -v
           npm -v
 
       - name: Verify tag matches package.json version
         id: ver
         run: |
-          TAG="${GITHUB_REF_NAME#v}"                 # "v1.2.3" -> "1.2.3"
+          TAG="${GITHUB_REF_NAME#v}"  # "v1.2.3" -> "1.2.3"
           PKG_VERSION=$(node -p "require('./package.json').version")
-          echo "Tag version:       ${TAG}"
-          echo "package.json ver.: ${PKG_VERSION}"
+          echo "Tag:            ${TAG}"
+          echo "package.json:   ${PKG_VERSION}"
           if [ "${TAG}" != "${PKG_VERSION}" ]; then
             echo "::error::Tag (${TAG}) does not match package.json version (${PKG_VERSION})"
             exit 1
           fi
           echo "version=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then
             npm ci --no-fund --no-audit
@@ -71,6 +71,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "::error::NPM_TOKEN secret is missing"
+            exit 1
+          fi
           npm publish --access public
 
       - name: Create GitHub Release
@@ -89,4 +93,5 @@ jobs:
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
           git tag -f latest "${GITHUB_SHA}"
-          git push -f "https://${{ github.actor }}:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" refs/tags/latest:refs/tags/latest
+          git push -f "https://${{ github.actor }}:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+            refs/tags/latest:refs/tags/latest
