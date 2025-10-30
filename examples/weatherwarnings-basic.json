@@ -1,0 +1,47 @@
+[
+  {
+    "id": "inj1",
+    "type": "inject",
+    "z": "flow1",
+    "name": "manual trigger",
+    "props": [{"p":"payload"}],
+    "repeat": "",
+    "once": true,
+    "onceDelay": 0.2,
+    "topic": "",
+    "payloadType": "date",
+    "x": 180,
+    "y": 120,
+    "wires": [["dwd1"]]
+  },
+  {
+    "id": "dwd1",
+    "type": "dwd-weatherwarnings",
+    "z": "flow1",
+    "name": "DWD Weatherwarnings",
+    "regionCode": "805362004",
+    "allowNameFallback": true,
+    "extraRegionNames": "Stadt Bedburg",
+    "onlyActiveFuture": true,
+    "fireOnDeploy": false,
+    "autoRefreshSec": 0,
+    "allowStale": true,
+    "x": 400,
+    "y": 120,
+    "wires": [["dbg1"]]
+  },
+  {
+    "id": "dbg1",
+    "type": "debug",
+    "z": "flow1",
+    "name": "warnings",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "x": 650,
+    "y": 120,
+    "wires": []
+  }
+]
