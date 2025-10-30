@@ -1,21 +1,33 @@
 {
   "name": "node-red-contrib-dwd-weatherwarnings",
   "version": "1.0.3",
-  "description": "Node-RED node to retrieve and process DWD weather warnings (CAP-Feed, with Kreis & Name fallback)",
+  "description": "Node-RED node to retrieve and process DWD weather warnings (CAP-Feed, with Kreis & Name fallback).",
   "license": "MIT",
+  "author": {
+    "name": "Gerd Ruetten"
+  },
+  "homepage": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings/issues"
+  },
   "keywords": [
     "node-red",
     "dwd",
     "weather",
     "warnings",
-    "cap"
+    "cap",
+    "opendata",
+    "alert",
+    "germany"
   ],
-  "author": {
-    "name": "Gerd Ruetten"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings.git"
+  "node-red": {
+    "nodes": {
+      "dwd-weatherwarnings": "nodes/dwd-weatherwarnings.js"
+    }
   },
   "dependencies": {
     "moment": "^2.29.4",
@@ -24,9 +36,13 @@
     "request": "^2.88.2",
     "xml2js": "^0.6.2"
   },
-  "node-red": {
-    "nodes": {
-      "dwd-weatherwarnings": "nodes/dwd-weatherwarnings.js"
-    }
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "echo \"No tests defined\""
   }
 }
