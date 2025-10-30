@@ -126,15 +126,7 @@ MIT © 2025 [Marvin Rütten](https://github.com/GerdRuetten)
 ---
 
 ## 🧰 Changelog
-
-### v1.0.0
-- Initial release
-- Full support for DWD CAP warning feed
-- Added name fallback and alternate region names
-- Added stale fallback and auto-refresh
-- Added HTML summary output
-- Added “only active/future” filter
-- Added core-only output mode
+Siehe **[CHANGELOG.md](./CHANGELOG.md)**.
 
 ---
 
