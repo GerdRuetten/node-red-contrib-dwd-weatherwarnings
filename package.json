@@ -1,18 +1,36 @@
 {
   "name": "node-red-contrib-dwd-weatherwarnings",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Node-RED node to retrieve and process DWD weather warnings (CAP-Feed, with Kreis & Name fallback)",
   "license": "MIT",
-  "author": { "name": "Gerd Ruetten" },
+  "author": {
+    "name": "Gerd Ruetten"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings.git"
   },
   "homepage": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings#readme",
-  "bugs": { "url": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings/issues" },
-  "keywords": ["node-red","dwd","weather","warnings","cap"],
-  "engines": { "node": ">=18.0.0", "npm": ">=9.0.0" },
-  "files": ["nodes/", "README.md", "CHANGELOG.md", "examples/"],
+  "bugs": {
+    "url": "https://github.com/GerdRuetten/node-red-contrib-dwd-weatherwarnings/issues"
+  },
+  "keywords": [
+    "node-red",
+    "dwd",
+    "weather",
+    "warnings",
+    "cap"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "files": [
+    "nodes/",
+    "README.md",
+    "CHANGELOG.md",
+    "examples/"
+  ],
   "dependencies": {
     "moment": "^2.29.4",
     "moment-range": "^4.0.2",
