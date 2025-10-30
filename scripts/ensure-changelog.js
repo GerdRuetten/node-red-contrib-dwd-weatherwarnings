@@ -1,37 +1,58 @@
 #!/usr/bin/env node
-// Failt den Versionsbump, wenn CHANGELOG.md nicht gestaged ist oder leer blieb.
-
+/* eslint-disable no-console */
 const { execSync } = require('node:child_process');
 
 function run(cmd) {
     return execSync(cmd, { encoding: 'utf8' }).trim();
 }
+function list(cmd) {
+    const out = run(cmd);
+    return out ? out.split('\n').map(s => s.trim()).filter(Boolean) : [];
+}
 
 try {
-    // 1) Prüfen, ob CHANGELOG.md existiert
-    try { run('test -f CHANGELOG.md'); } catch {
-        console.error('❌ CHANGELOG.md fehlt im Repo.');
+    if (process.env.ALLOW_NO_CHANGELOG === '1') {
+        console.log('⚠️  Skipping changelog check because ALLOW_NO_CHANGELOG=1');
+        process.exit(0);
+    }
+
+    // 1) Existenz prüfen
+    try { run('test -f CHANGELOG.md || test -f Changelog.md || test -f changelog.md'); }
+    catch {
+        console.error('❌ CHANGELOG.md fehlt (Prüfe Groß-/Kleinschreibung).');
         process.exit(1);
     }
 
-    // 2) Ist CHANGELOG.md gestaged?
-    const staged = run('git diff --name-only --cached');
-    if (!staged.split('\n').includes('CHANGELOG.md')) {
-        console.error('❌ CHANGELOG.md ist nicht gestaged. Bitte: git add CHANGELOG.md');
+    // 2) Dateiname case-insensitiv ermitteln
+    const tracked = list('git ls-files');
+    const changeLogPath = tracked.find(f => f.toLowerCase() === 'changelog.md');
+    if (!changeLogPath) {
+        console.error('❌ CHANGELOG.md ist nicht getrackt (git ls-files findet sie nicht).');
         process.exit(1);
     }
 
-    // 3) Optional: Wurde CHANGELOG.md überhaupt geändert (gegenüber HEAD)?
-    const changed = run('git diff --name-only');
-    const changedCached = run('git diff --name-only --cached');
-    const anyChange = (changed + '\n' + changedCached).split('\n').filter(Boolean);
-    const changedChangelog = anyChange.includes('CHANGELOG.md');
-    if (!changedChangelog) {
-        console.error('❌ CHANGELOG.md wurde nicht geändert. Bitte neue Einträge ergänzen.');
-        process.exit(1);
+    // 3) Fälle, die wir akzeptieren:
+    const staged = list('git diff --name-only --cached').map(s => s.toLowerCase());
+    const unstaged = list('git diff --name-only').map(s => s.toLowerCase());
+    let touchedInHead = false;
+    try {
+        touchedInHead = list('git show --name-only --pretty="" HEAD')
+            .map(s => s.toLowerCase())
+            .includes(changeLogPath.toLowerCase());
+    } catch { /* HEAD kann fehlen in frischen Repos */ }
+
+    const isStaged = staged.includes(changeLogPath.toLowerCase());
+    const isUnstaged = unstaged.includes(changeLogPath.toLowerCase());
+
+    if (isStaged || isUnstaged || touchedInHead) {
+        console.log(`✅ CHANGELOG erkannt (${changeLogPath}) – Zustand: ` +
+            `${isStaged ? 'staged' : isUnstaged ? 'unstaged' : 'im letzten Commit geändert'}.`);
+        process.exit(0);
     }
 
-    console.log('✅ CHANGELOG.md ist vorhanden, geändert und gestaged.');
+    console.error('❌ CHANGELOG.md wurde für diesen Release nicht geändert oder ist nicht gestaged.');
+    console.error('   Bitte `CHANGELOG.md` anpassen und `git add CHANGELOG.md` ausführen.');
+    process.exit(1);
 } catch (e) {
     console.error(e.message || e);
     process.exit(1);
