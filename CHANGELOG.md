@@ -67,3 +67,4 @@ Das Format folgt **Keep a Changelog** und **SemVer**.
 - Added HTML summary output
 - Added “only active/future” filter
 - Added core-only output mode
+
