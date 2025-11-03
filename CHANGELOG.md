@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.3] – 2025-11-03
+## [1.1.4] – 2025-11-03
 
 ### Changed
 - README.md an aktuelle Code-Basis angepasst

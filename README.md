@@ -132,7 +132,6 @@ Zusätzlich enthält `msg._meta` nützliche Metadaten zur Abfrage:
   Auto-Refresh nicht zu klein wählen (z. B. ≥ 300s).
 
 ---
-
 ## Beispiel-Flow
 
 Ein einfacher Flow mit Debug-Ausgabe:
@@ -181,63 +180,7 @@ Dieses Projekt steht unter der **MIT License**.
 
 ---
 
-## Changelog (Auszug)
-
-### v1.1.2 – 2025-11-03
-- **Behoben:** nicht verwendete Meta-Felder `nameFallback` und `usedAreaNameMatch` entfernt
-- **Neu:** saubere `_meta`-Struktur im Output (nach Node-RED-Best Practices)
-- **Pflege:** README aktualisiert, Parameterbeschreibungen überarbeitet
-- **Stabilität:** interne Referenzen und HTML-Bindings geprüft
-
----## Beispiel-Flow
-
-Ein einfacher Flow mit Debug-Ausgabe:
-
-```json
-[
-  {
-    "id": "dwd-warnings",
-    "type": "dwd-weatherwarnings",
-    "z": "flow1",
-    "name": "DWD Warnings Köln/Düsseldorf",
-    "dataset": "COMMUNEUNION_CELLS_STAT",
-    "warncells": "105315000, 105111000",
-    "areaNameMatch": true,
-    "extraAreaNames": "Köln, Düsseldorf, Deutz",
-    "activeOnly": true,
-    "staleAllow": true,
-    "autoRefresh": 300,
-    "fetchOnDeploy": true,
-    "diag": true,
-    "x": 300,
-    "y": 200,
-    "wires": [["debug-node"]]
-  },
-  {
-    "id": "debug-node",
-    "type": "debug",
-    "name": "Output",
-    "active": true,
-    "tosidebar": true,
-    "console": false,
-    "complete": "payload",
-    "x": 600,
-    "y": 200,
-    "z": "flow1"
-  }
-]
-```
-
----
-
-## Lizenz
-
-Dieses Projekt steht unter der **MIT License**.  
-© 2025 [Gerd Rütten](https://github.com/GerdRuetten)
-
----
-
-## Changelog (Auszug)
+## Changelog
 siehe CHANGELOG.md
 
 ---
