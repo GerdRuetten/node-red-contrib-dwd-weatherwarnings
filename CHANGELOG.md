@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.3] – 2025-11-03
+
+### Changed
+- README.md an aktuelle Code-Basis angepasst
+- Placeholder für warncells und extraAreaNames auf plausible Werte angepasst
+
 ## [1.1.2] – 2025-11-03
 
 ### Fixed
