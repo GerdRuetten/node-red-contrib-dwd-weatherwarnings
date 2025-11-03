@@ -1,293 +1,378 @@
-/**
- * DWD Weather Warnings (CAP) for Node-RED
- * - Uses official DWD CAP Atom: last 90 minutes
- * - Region-Filter: Warncell-ID (exact) + optional Name-Fallback (areaDesc contains…)
- * - UI options:
- *   - allowNameFallback: boolean
- *   - extraAreaNames: string (comma-separated)
- *   - onlyActiveFuture: boolean (drop items with past=true)
- *   - allowStale: boolean (deliver last good result if feed is temporarily malformed)
- *   - immediateFetch: boolean (request once on deploy)
- *   - autoRefreshSec: number (polling interval in seconds; 0/empty = off)
- */
-
 module.exports = function (RED) {
-    const axios = require("axios");
-    const xml2js = require("xml2js");
-    const FEED_URL = "https://www.dwd.de/DWD/warnungen/cap/last90minutes/cap_de.atom";
+  "use strict";
+  const axios = require("axios");
+  const AdmZip = require("adm-zip");
+  const { parseStringPromise } = require("xml2js");
 
-    function DwdWeatherWarningsNode(config) {
-        RED.nodes.createNode(this, config);
-        const node = this;
+  // --- DATASET Mapping ---
+  const DATASETS = {
+    COMMUNEUNION_CELLS_STAT: "COMMUNEUNION",
+    DISTRICT_CELLS_STAT: "DISTRICT",
+  };
 
-        // UI config
-        node.regionId = (config.regionId || "").trim(); // e.g. "805362004"
-        node.allowNameFallback = !!config.allowNameFallback;
-        node.extraAreaNames = (config.extraAreaNames || "").split(",").map(s => s.trim()).filter(Boolean);
-        node.onlyActiveFuture = !!config.onlyActiveFuture;
-        node.allowStale = !!config.allowStale;
+  const BASE_DIR = "https://opendata.dwd.de/weather/alerts/cap";
 
-        node.immediateFetch = !!config.immediateFetch;
-        node.autoRefreshSec = Number(config.autoRefreshSec || 0);
+  function buildLatestZipUrl(datasetKey) {
+    const dir = datasetKey;
+    const kind = DATASETS[datasetKey];
+    if (!dir || !kind) throw new Error(`Ungültiger Dataset-Key: ${datasetKey}`);
+    return `${BASE_DIR}/${dir}/Z_CAP_C_EDZW_LATEST_PVW_STATUS_PREMIUMCELLS_${kind}_DE.zip`;
+  }
 
-        node.timeoutMs = Number(config.timeoutMs || 15000);
+  async function findNewestZipUrl(datasetKey, logFn) {
+    const dir = datasetKey;
+    const kind = DATASETS[datasetKey];
+    const indexUrl = `${BASE_DIR}/${dir}/`;
+    const res = await axios.get(indexUrl, { responseType: "text", validateStatus: () => true });
+    if (res.status !== 200) throw new Error(`Index HTTP ${res.status}`);
 
-        // state for stale mode
-        let lastGoodMsg = null;
-        let pollTimer = null;
+    const re = new RegExp(
+      `Z_CAP_C_EDZW_([0-9]{14})_PVW_STATUS_PREMIUMCELLS_${kind}_DE\\.zip`,
+      "g"
+    );
 
-        function setStatusOK(text) {
-            node.status({ fill: "green", shape: "dot", text });
+    const matches = [];
+    let m;
+    while ((m = re.exec(res.data))) matches.push({ name: m[0], ts: m[1] });
+    if (!matches.length) return buildLatestZipUrl(datasetKey);
+
+    matches.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
+    const newest = matches[0].name;
+    return `${BASE_DIR}/${dir}/${newest}`;
+  }
+
+  async function downloadZipBuffer(url, logFn) {
+    const res = await axios.get(url, { responseType: "arraybuffer", validateStatus: () => true });
+    if (logFn) logFn(`[DWD-Warnings] GET ${url} → ${res.status}`);
+    if (res.status !== 200) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.data;
+  }
+
+  async function fetchZipWithFallback(datasetKey, logFn) {
+    const latestUrl = buildLatestZipUrl(datasetKey);
+    try {
+      return { buffer: await downloadZipBuffer(latestUrl, logFn), sourceUrl: latestUrl, stale: false };
+    } catch (e) {
+      if (e && e.status === 404) {
+        if (logFn) logFn(`[DWD-Warnings] LATEST 404 – Fallback auf Directory-Listing…`);
+        const newestUrl = await findNewestZipUrl(datasetKey, logFn);
+        const buf = await downloadZipBuffer(newestUrl, logFn);
+        return { buffer: buf, sourceUrl: newestUrl, stale: true };
+      }
+      throw e;
+    }
+  }
+
+  // --- Helpers ---
+  const asArray = (x) => (x == null ? [] : Array.isArray(x) ? x : [x]);
+  const textOf = (node) =>
+    typeof node === "string" ? node : node && typeof node._ === "string" ? node._ : null;
+
+  // CAP → Normalisierte Warnung
+  function normalizeAlert(cap, srcName) {
+    const a = cap.alert || cap["cap:alert"] || cap;
+    if (!a) return null;
+
+    const id = asArray(a.identifier).map(textOf)[0] || null;
+    const sender = asArray(a.sender).map(textOf)[0] || null;
+    const sent = asArray(a.sent).map(textOf)[0] || null;
+    const status = asArray(a.status).map(textOf)[0] || null;
+    const msgType = asArray(a.msgType).map(textOf)[0] || null;
+    const scope = asArray(a.scope).map(textOf)[0] || null;
+
+    const info = asArray(a.info).map((i) => {
+      const lang = asArray(i.language).map(textOf)[0] || null;
+      const category = asArray(i.category).map(textOf)[0] || null;
+      const event = asArray(i.event).map(textOf)[0] || null;
+      const urgency = asArray(i.urgency).map(textOf)[0] || null;
+      const severity = asArray(i.severity).map(textOf)[0] || null;
+      const certainty = asArray(i.certainty).map(textOf)[0] || null;
+      const headline = asArray(i.headline).map(textOf)[0] || null;
+      const description = asArray(i.description).map(textOf)[0] || null;
+      const instruction = asArray(i.instruction).map(textOf)[0] || null;
+      const onset = asArray(i.onset).map(textOf)[0] || null;
+      const expires = asArray(i.expires).map(textOf)[0] || null;
+      const senderName = asArray(i.senderName).map(textOf)[0] || null;
+
+      // area + geocode → WARNCELLID + areaDesc
+      const warncells = [];
+      const areaDescs = [];
+      for (const area of asArray(i.area)) {
+        const desc = asArray(area.areaDesc).map(textOf)[0];
+        if (desc) areaDescs.push(desc);
+        for (const g of asArray(area.geocode)) {
+          const vn = asArray(g.valueName).map(textOf)[0];
+          const vv = asArray(g.value).map(textOf)[0];
+          if (vn && vv && vn.toUpperCase() === "WARNCELLID") warncells.push(vv);
         }
-        function setStatusWarn(text) {
-            node.status({ fill: "yellow", shape: "ring", text });
-        }
-        function setStatusErr(text) {
-            node.status({ fill: "red", shape: "dot", text });
-        }
+      }
 
-        async function fetchText(url, timeoutMs) {
-            const res = await axios.get(url, {
-                timeout: timeoutMs || 15000,
-                responseType: "text",
-                transitional: { forcedJSONParsing: false }
-            });
-            if (res.status < 200 || res.status >= 300) {
-                throw new Error(`HTTP ${res.status} for ${url}`);
-            }
-            return res.data;
-        }
+      return {
+        lang, category, event, urgency, severity, certainty,
+        headline, description, instruction, onset, expires, senderName,
+        areaDesc: areaDescs.join("; "),
+        warncellIds: Array.from(new Set(warncells)),
+      };
+    });
 
-        function normalizeCapItem(entry) {
-            // Each entry corresponds to a CAP alert. We expect CAP fields inside.
-            // xml2js with explicitArray:false is used below, so properties are objects/strings.
-            // Minimal extraction: identifier, area(s), event, headline, onset, expires, past flag, severity, urgency, certainty.
+    const references = asArray(a.references).map(textOf)[0] || null;
 
-            const cap = entry || {};
-            const id = cap.id || cap.identifier || "";
-            const updated = cap.updated || cap.published || null;
-            // CAP payload is usually in "content" or directly nested. Many feeds embed <cap:alert> etc.
-            const content = cap.content || cap["cap:alert"] || cap.alert || cap;
-            const info = content.info || content["cap:info"] || content;
+    return { id, sender, sent, status, msgType, scope, info, references, source: srcName || null };
+  }
 
-            // Event title/headline
-            const headline =
-                info.headline || info["cap:headline"] || cap.title || "";
+  async function extractAlertsFromZipBuffer(buffer, logFn) {
+    const zip = new AdmZip(buffer);
+    const entries = zip.getEntries();
 
-            // Event type
-            const event =
-                info.event || info["cap:event"] || "";
+    const xmlEntries = entries.filter((e) => e.entryName.toLowerCase().match(/\.(xml|cap)$/));
+    if (logFn) logFn(`[DWD-Warnings] ZIP enthält ${xmlEntries.length} CAP/XML-Datei(en)`);
 
-            const severity = info.severity || info["cap:severity"] || "";
-            const urgency = info.urgency || info["cap:urgency"] || "";
-            const certainty = info.certainty || info["cap:certainty"] || "";
-
-            // Times
-            const onset = info.onset || info["cap:onset"] || null;
-            const expires = info.expires || info["cap:expires"] || null;
-
-            // Areas (can be array)
-            // Different CAP encoders represent area as info.area or info["cap:area"]; each area has areaDesc + geocodes
-            let areas = [];
-            const rawAreas = info.area || info["cap:area"] || [];
-            if (Array.isArray(rawAreas)) {
-                areas = rawAreas;
-            } else if (rawAreas && typeof rawAreas === "object") {
-                areas = [rawAreas];
-            }
-
-            const normalizedAreas = areas.map(a => {
-                const desc = a.areaDesc || a["cap:areaDesc"] || "";
-                // GEOCODES include warncell IDs. Identify something like:
-                // a.geocode -> array/object; values as { valueName: 'warncellid', value: '805362004' }
-                const geoc = a.geocode || a["cap:geocode"] || [];
-                const geos = Array.isArray(geoc) ? geoc : [geoc];
-                const geoObj = {};
-                geos.forEach(g => {
-                    const name = (g.valueName || g["cap:valueName"] || "").toLowerCase();
-                    const val = g.value || g["cap:value"] || "";
-                    if (name) {
-                        if (!geoObj[name]) geoObj[name] = [];
-                        geoObj[name].push(val);
-                    }
-                });
-                return {
-                    areaDesc: desc,
-                    geocode: geoObj
-                };
-            });
-
-            // Some feeds flag 'past' alerts in info or parameters. If absent, we compute later.
-            const past =
-                info.past === true ||
-                info["cap:past"] === true ||
-                false;
-
-            return {
-                id,
-                updated,
-                event,
-                headline,
-                onset,
-                expires,
-                severity,
-                urgency,
-                certainty,
-                areas: normalizedAreas,
-                past
-            };
-        }
-
-        function matchesRegion(item) {
-            // 1) ID match via warncell id in geocode
-            if (node.regionId) {
-                const id = String(node.regionId);
-                const hitById = (item.areas || []).some(a => {
-                    const cells = (a.geocode && (a.geocode.warncellid || a.geocode["warncellid"])) || [];
-                    return cells.some(v => String(v) === id);
-                });
-                if (hitById) return true;
-            }
-
-            // 2) Name fallback
-            if (node.allowNameFallback) {
-                const namesToCheck = [];
-                if (node.extraAreaNames && node.extraAreaNames.length > 0) {
-                    namesToCheck.push(...node.extraAreaNames);
-                }
-                // Also try some variants of regionId as text if it looks like "123 Name" - but typically regionId is pure numeric
-                // We rely primarily on extraAreaNames plus whatever user types as region-like names.
-
-                const hitByName = (item.areas || []).some(a => {
-                    const desc = (a.areaDesc || "").toLowerCase();
-                    return namesToCheck.some(n => desc.includes(n.toLowerCase()));
-                });
-                if (hitByName) return true;
-            }
-
-            return false;
-        }
-
-        function isActiveOrFuture(item) {
-            if (!node.onlyActiveFuture) return true;
-            // A "past" item should be excluded, else check expires > now or onset >= now or not marked past
-            if (item.past === true) return false;
-
-            const now = Date.now();
-            const on = item.onset ? Date.parse(item.onset) : null;
-            const ex = item.expires ? Date.parse(item.expires) : null;
-
-            // Conditions: if it hasn't started yet (onset in future) or is ongoing (expires in the future)
-            if (on && on > now) return true;
-            if (ex && ex > now) return true;
-
-            // If both timestamps missing, keep it (cannot prove it is past)
-            if (!on && !ex) return true;
-
-            return false;
-        }
-
-        async function handleFetch(msg, fromTimer = false) {
-            try {
-                node.status({}); // clear
-                const xml = await fetchText(FEED_URL, node.timeoutMs);
-
-                const cap = await xml2js.parseStringPromise(xml, {
-                    explicitArray: false,
-                    mergeAttrs: true,
-                    normalizeTags: false,
-                    normalize: false,
-                    trim: true
-                });
-
-                const feed = cap.feed || cap;
-                let entries = feed.entry || [];
-                if (!Array.isArray(entries)) entries = [entries];
-
-                // Normalize each entry
-                const items = entries
-                    .filter(Boolean)
-                    .map(normalizeCapItem)
-                    .filter(matchesRegion)
-                    .filter(isActiveOrFuture);
-
-                const count = items.length;
-                const events = items.map(i => i.event).filter(Boolean).join(", ");
-                const out = {
-                    payload: count,
-                    count,
-                    events,
-                    warnings: items,
-                    _meta: {
-                        url: FEED_URL,
-                        regionId: node.regionId || null,
-                        allowNameFallback: node.allowNameFallback,
-                        extraAreaNames: node.extraAreaNames,
-                        onlyActiveFuture: node.onlyActiveFuture,
-                        fetchedAt: new Date().toISOString(),
-                        fromTimer
-                    }
-                };
-
-                lastGoodMsg = out;
-                node.send(out);
-                setStatusOK(`${count} warn.`);
-
-            } catch (err) {
-                const msgText = (err && err.message) ? err.message : String(err);
-                setStatusWarn(`CAP Fehler: ${msgText}`);
-
-                if (node.allowStale && lastGoodMsg) {
-                    const stale = Object.assign({}, lastGoodMsg, {
-                        _meta: { ...(lastGoodMsg._meta || {}), stale: true, error: msgText, deliveredAt: new Date().toISOString() }
-                    });
-                    node.send(stale);
-                } else {
-                    // also emit empty structure to keep flows predictable
-                    node.send({
-                        payload: 0,
-                        count: 0,
-                        events: "",
-                        warnings: [],
-                        _meta: {
-                            url: FEED_URL,
-                            error: msgText,
-                            stale: false,
-                            fetchedAt: new Date().toISOString()
-                        }
-                    });
-                }
-            }
-        }
-
-        function schedule() {
-            if (pollTimer) {
-                clearInterval(pollTimer);
-                pollTimer = null;
-            }
-            const sec = Number(node.autoRefreshSec || 0);
-            if (sec > 0) {
-                pollTimer = setInterval(() => handleFetch({}, true), sec * 1000);
-            }
-        }
-
-        node.on("input", function (msg) {
-            handleFetch(msg, false);
+    const out = [];
+    for (const ent of xmlEntries) {
+      try {
+        const xml = ent.getData().toString("utf8");
+        const obj = await parseStringPromise(xml, {
+          explicitArray: true,
+          mergeAttrs: true,
+          preserveChildrenOrder: false,
         });
 
-        node.on("close", function () {
-            if (pollTimer) clearInterval(pollTimer);
+        // <alert>…</alert> ODER Atom-Feed mit <entry><content><alert>
+        let capAlerts = [];
+        if (obj.alert || obj["cap:alert"]) {
+          capAlerts = [obj];
+        } else if (obj.feed || obj["atom:feed"]) {
+          const feed = obj.feed || obj["atom:feed"];
+          const entries = asArray(feed.entry || feed["atom:entry"]);
+          for (const entry of entries) {
+            const content = asArray(entry.content || entry["atom:content"])[0] || {};
+            const alert = content.alert || content["cap:alert"];
+            if (alert) capAlerts.push({ alert });
+          }
+        }
+
+        for (const cap of capAlerts) {
+          const norm = normalizeAlert(cap, ent.entryName);
+          if (norm) out.push(norm);
+        }
+      } catch (e) {
+        if (logFn) logFn(`[DWD-Warnings] Parse-Fehler in ${ent.entryName}: ${e.message}`);
+      }
+    }
+    return out;
+  }
+
+  // ---- Filter: Warncells & Area-Names (Union/ODER) ----
+  function parseWarncellFilter(input) {
+    if (!input) return null;
+    const list = String(input)
+      .split(/[,\s;]+/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return list.length ? new Set(list) : null;
+  }
+
+  function parseAreaNames(input) {
+    if (!input) return null;
+    const list = String(input)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => s.toLowerCase());
+    return list.length ? new Set(list) : null;
+  }
+
+  function alertMatchesWarncell(alert, warncellSet) {
+    if (!warncellSet) return false;
+    for (const inf of asArray(alert.info)) {
+      for (const id of asArray(inf.warncellIds)) {
+        if (warncellSet.has(id)) return true;
+      }
+    }
+    return false;
+  }
+
+  function alertMatchesArea(alert, areaNameSet) {
+    if (!areaNameSet) return false;
+    for (const inf of asArray(alert.info)) {
+      const desc = (inf.areaDesc || "").toLowerCase();
+      if (!desc) continue;
+      for (const name of areaNameSet) {
+        if (desc.includes(name)) return true;
+      }
+    }
+    return false;
+  }
+
+  function filterUnion(alerts, warncellSet, areaNameSet) {
+    if (!warncellSet && !areaNameSet) return alerts; // kein Filter aktiv
+    const out = [];
+    for (const a of alerts) {
+      if (alertMatchesWarncell(a, warncellSet) || alertMatchesArea(a, areaNameSet)) {
+        out.push(a);
+      }
+    }
+    return out;
+  }
+
+  // Nur aktive & zukünftige Meldungen
+  function filterActiveFuture(alerts, nowTs) {
+    const out = [];
+    for (const a of alerts) {
+      if (a.msgType && String(a.msgType).toLowerCase() === "cancel") continue;
+      let alive = false;
+      for (const inf of asArray(a.info)) {
+        const exp = inf.expires ? Date.parse(inf.expires) : NaN;
+        if (!Number.isFinite(exp) || exp >= nowTs) { alive = true; break; }
+      }
+      if (alive) out.push(a);
+    }
+    return out;
+  }
+
+  // Optional: Name-Fallback (bleibt wie zuvor verfügbar, falls ihr ihn weiter nutzen wollt)
+  function applyNameFallback(alerts) {
+    for (const a of alerts) {
+      for (const inf of asArray(a.info)) {
+        if (!("name" in inf) || !inf.name) {
+          inf.name = inf.headline || inf.event || inf.category || inf.senderName || "Warnung";
+        }
+      }
+    }
+    return alerts;
+  }
+
+  function WarningsNode(config) {
+    RED.nodes.createNode(this, config);
+    const node = this;
+
+    node.dataset = config.dataset || "COMMUNEUNION_CELLS_STAT";
+    node.warncells = config.warncells || ""; // CSV/Whitespace
+
+    node.areaNameMatch = !!config.areaNameMatch;    // Checkbox
+    node.extraAreaNames = config.extraAreaNames || ""; // CSV
+
+    node.activeOnly = !!config.activeOnly;
+    node.staleAllow = !!config.staleAllow;
+    node.nameFallback = !!config.nameFallback;
+
+    node.fetchOnDeploy = !!config.fetchOnDeploy;
+    node.autoRefresh = Number(config.autoRefresh || 0);
+    node.diag = !!config.diag;
+
+    let refreshTimer = null;
+    const setStatus = (text, shape = "dot", color = "blue") =>
+      node.status({ fill: color, shape, text });
+
+    async function runFetch(msg) {
+      const dataset = (msg && msg.dataset) || node.dataset;
+
+      // Eingaben aus msg überschreiben (optional)
+      const warncellInput = (msg && (msg.warncells || msg.warncellIds)) || node.warncells;
+      const warncellSet = parseWarncellFilter(warncellInput);
+
+      // Area-Name-Filter nur, wenn Checkbox aktiv UND es mind. einen Namen gibt
+      const areaMatchEnabled = (msg && typeof msg.areaNameMatch === "boolean")
+        ? !!msg.areaNameMatch
+        : node.areaNameMatch;
+
+      const extraAreaNamesInput = (msg && msg.extraAreaNames != null)
+        ? String(msg.extraAreaNames)
+        : node.extraAreaNames;
+
+      const areaNameSet = areaMatchEnabled ? parseAreaNames(extraAreaNamesInput) : null;
+
+      setStatus("lade…", "dot", "blue");
+
+      try {
+        const { buffer, sourceUrl, stale } = await fetchZipWithFallback(
+          dataset,
+          node.diag ? node.log.bind(node) : null
+        );
+
+        if (stale && !node.staleAllow) {
+          throw new Error("Stale-Daten sind nicht erlaubt (LATEST 404 → Verzeichnis-Fallback)");
+        }
+
+        let alerts = await extractAlertsFromZipBuffer(
+          buffer,
+          node.diag ? node.log.bind(node) : null
+        );
+
+        // Filter-Kette
+        const nowTs = Date.now();
+
+        // 1) Union aus Warncell-Filter und optionalem Area-Name-Filter
+        alerts = filterUnion(alerts, warncellSet, areaNameSet);
+
+        // 2) Nur aktive & zukünftige (optional)
+        if (node.activeOnly) alerts = filterActiveFuture(alerts, nowTs);
+
+        // 3) Optionale kosmetische Ergänzung
+        if (node.nameFallback) applyNameFallback(alerts);
+
+        if (node.diag) {
+          node.log(
+            `[DWD-Warnings] Alerts nach Filtern: ${alerts.length}` +
+            (warncellSet ? ` | Warncells: ${Array.from(warncellSet).join(",")}` : "") +
+            (areaNameSet ? ` | AreaNames: ${Array.from(areaNameSet).join(",")}` : "") +
+            (node.activeOnly ? " | onlyActive=true" : "")
+          );
+        }
+
+        // Sort: neueste zuerst (sent)
+        alerts.sort((a, b) => {
+          const ta = a.sent ? Date.parse(a.sent) || 0 : 0;
+          const tb = b.sent ? Date.parse(b.sent) || 0 : 0;
+          return tb - ta;
         });
 
-        // init
-        schedule();
-        if (node.immediateFetch) {
-            // small delay so status heartbeat appears after deploy
-            setTimeout(() => handleFetch({}, false), 200);
-        } else {
-            setStatusOK("bereit");
-        }
+        const out = {
+          payload: alerts,
+          _meta: {
+            dataset,
+            sourceUrl,
+            stale,
+            total: alerts.length,
+            filterWarncells: warncellSet ? Array.from(warncellSet) : [],
+            areaNameMatch: !!areaMatchEnabled,
+            extraAreaNames: areaNameSet ? Array.from(areaNameSet) : [],
+            onlyActive: !!node.activeOnly,
+            nameFallback: !!node.nameFallback,
+          },
+        };
+
+        setStatus(`${alerts.length} Meldungen`, "dot", stale ? "yellow" : "green");
+        node.send(out);
+      } catch (err) {
+        node.error(`DWD-Warnings Fehler: ${err && err.message ? err.message : String(err)}`, err);
+        setStatus("Fehler", "ring", "red");
+      }
     }
 
-    RED.nodes.registerType("dwd-weatherwarnings", DwdWeatherWarningsNode);
+    function scheduleRefresh() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+      const s = Number(node.autoRefresh || 0);
+      if (s > 0) refreshTimer = setInterval(() => runFetch({}), s * 1000);
+    }
+
+    node.on("input", runFetch);
+    node.on("close", () => {
+      if (refreshTimer) clearInterval(refreshTimer);
+      setStatus("");
+    });
+
+    scheduleRefresh();
+    if (node.fetchOnDeploy) runFetch({}).catch(() => {});
+    else setStatus("bereit");
+  }
+
+  RED.nodes.registerType("dwd-weatherwarnings", WarningsNode);
 };
