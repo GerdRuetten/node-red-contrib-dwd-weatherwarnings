@@ -1,6 +1,19 @@
 # Changelog
-Alle Änderungen an diesem Projekt werden in diesem Dokument festgehalten.  
-Das Format folgt **Keep a Changelog** und **SemVer**.
+## [1.1.0] – 2025-11-03
+
+### Fixed
+- **404-Fehler beim Abruf der DWD-Warnungen behoben**
+    - Alte Feed-URLs (`cap_de.atom`, `COUNTY_MOWAS`, `DISTRICT_CELLS_STAT/LATEST`) durch die neuen ZIP-Feeds ersetzt:  
+      `https://opendata.dwd.de/weather/alerts/cap/.../Z_CAP_C_EDZW_LATEST_PVW_STATUS_PREMIUMCELLS_*.zip`
+    - Fallback implementiert, falls `_LATEST_` nicht verfügbar ist (automatische Auswahl der neuesten Datei im Verzeichnis).
+
+### Added
+- **Erweiterte Diagnose-Logs** über neue Checkbox *„Diagnose-Logs“* in der Node-UI.
+    - Zeigt detaillierte Fetch- und Parse-Informationen im Node-RED-Log (Status, Datensätze, Filterung, Quelle).
+
+### Restored
+- **Vorherige UI-Optionen** (*Stale erlauben*, *Nur aktive & zukünftige*, *Gebiets-Namensabgleich*) wiederhergestellt.
+    - Diese Optionen entsprechen funktional der Version ≤ 1.0.8 und wurden neu integriert, ohne bestehende Flows zu brechen.
 
 ## [1.0.8] - 2025-10-30
 ### Changed
