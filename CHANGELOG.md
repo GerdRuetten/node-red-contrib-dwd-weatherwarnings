@@ -1,4 +1,16 @@
 # Changelog
+## [1.1.1] - 2025-11-03
+### Fixed
+- `_meta`-Block überarbeitet: alle Felder spiegeln jetzt korrekt die Node-Konfiguration wider  
+  (`staleAllow`, `areaNameMatch`, `extraAreaNames`, `onlyActive`, …)
+- Inkonsistente Feldnamen zwischen HTML-UI und Laufzeit-Objekt behoben  
+  (z. B. `node.allowStale` → `node.staleAllow`)
+- Ausgabe enthält jetzt saubere Trennung zwischen Laufzeitstatus (`stale`, `total`)  
+  und Konfigurationseigenschaften (`staleAllow`, `onlyActive`, `areaNameMatch`, …)
+
+### Internal
+- Code-Struktur im Output-Block vereinheitlicht und kommentiert
+
 ## [1.1.0] – 2025-11-03
 
 ### Fixed

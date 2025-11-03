@@ -334,16 +334,26 @@ module.exports = function (RED) {
         const out = {
           payload: alerts,
           _meta: {
-            dataset,
+            // Quelle
+            dataset: node.dataset,
             sourceUrl,
-            stale,
+
+            // Laufzeitstatus
+            stale: !!stale,                 // true = Ausgabe aus Cache/Fallback
             total: alerts.length,
+
+            // Konfiguration (Echo)
+            staleAllow: !!node.staleAllow,  // Checkbox „Stale erlauben“
+            onlyActive: !!node.activeOnly,  // Checkbox „Nur aktive und zukünftige Meldungen“
             filterWarncells: warncellSet ? Array.from(warncellSet) : [],
-            areaNameMatch: !!areaMatchEnabled,
-            extraAreaNames: areaNameSet ? Array.from(areaNameSet) : [],
-            onlyActive: !!node.activeOnly,
-            nameFallback: !!node.nameFallback,
-          },
+
+            // Namensabgleich (Konfiguration + Laufzeit)
+            areaNameMatch: !!node.areaNameMatch,                   // Checkbox „Gebiets-Namensabgleich erlauben“
+            extraAreaNames: node.extraAreaNames
+              ? node.extraAreaNames.split(",").map(s => s.trim()).filter(Boolean)
+              : [],
+            usedAreaNameMatch: !!usedAreaNameMatch                 // true, wenn areaDesc-Match tatsächlich genutzt wurde
+          }
         };
 
         setStatus(`${alerts.length} Meldungen`, "dot", stale ? "yellow" : "green");
