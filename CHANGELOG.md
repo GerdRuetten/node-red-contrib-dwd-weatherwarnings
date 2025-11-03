@@ -5,7 +5,7 @@
 - **404-Fehler beim Abruf der DWD-Warnungen behoben**
     - Alte Feed-URLs (`cap_de.atom`, `COUNTY_MOWAS`, `DISTRICT_CELLS_STAT/LATEST`) durch die neuen ZIP-Feeds ersetzt:  
       `https://opendata.dwd.de/weather/alerts/cap/.../Z_CAP_C_EDZW_LATEST_PVW_STATUS_PREMIUMCELLS_*.zip`
-    - Fallback implementiert, falls `_LATEST_` nicht verfügbar ist (automatische Auswahl der neuesten Datei im Verzeichnis).
+    - Fallback implementiert, falls DWD-Daten temporär nicht verfügbar ist (automatische Auswahl der neuesten Datei im Verzeichnis).
 
 ### Added
 - **Erweiterte Diagnose-Logs** über neue Checkbox *„Diagnose-Logs“* in der Node-UI.
