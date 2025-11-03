@@ -1,4 +1,17 @@
 # Changelog
+
+## [1.1.2] – 2025-11-03
+
+### Fixed
+- **Fehlerbehebung:** Variable `usedAreaNameMatch` war nicht definiert und verursachte den Fehler  
+  *„DWD-Warnings Fehler: usedAreaNameMatch is not defined“*.
+- **Meta-Block überarbeitet:** Saubere Trennung zwischen `used` (effektive Laufzeitparameter)  
+  und `configured` (Node-UI-Einstellungen).
+- **Entfernt:** `nameFallback` wird nicht mehr im `_meta`-Block ausgegeben.
+- **Korrekte Parameterauswertung:** Alle Flags (`areaNameMatch`, `staleAllow`, `onlyActive` etc.)  
+  werden jetzt zuverlässig aus `msg` oder Node-Konfiguration übernommen.
+- **Verbesserte Diagnose:** Log-Ausgabe zeigt nun alle effektiv genutzten Filterparameter übersichtlich an.
+
 ## [1.1.1] - 2025-11-03
 ### Fixed
 - `_meta`-Block überarbeitet: alle Felder spiegeln jetzt korrekt die Node-Konfiguration wider  

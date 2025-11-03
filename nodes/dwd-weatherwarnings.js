@@ -234,7 +234,7 @@ module.exports = function (RED) {
     return out;
   }
 
-  // Optional: Name-Fallback (bleibt wie zuvor verfügbar, falls ihr ihn weiter nutzen wollt)
+  // Optional: Name-Fallback
   function applyNameFallback(alerts) {
     for (const a of alerts) {
       for (const inf of asArray(a.info)) {
@@ -250,110 +250,121 @@ module.exports = function (RED) {
     RED.nodes.createNode(this, config);
     const node = this;
 
-    node.dataset = config.dataset || "COMMUNEUNION_CELLS_STAT";
-    node.warncells = config.warncells || ""; // CSV/Whitespace
+    // Defaults aus HTML
+    node.dataset       = config.dataset || "COMMUNEUNION_CELLS_STAT";
+    node.warncells     = config.warncells || ""; // CSV/Whitespace
 
-    node.areaNameMatch = !!config.areaNameMatch;    // Checkbox
-    node.extraAreaNames = config.extraAreaNames || ""; // CSV
-
-    node.activeOnly = !!config.activeOnly;
-    node.staleAllow = !!config.staleAllow;
-    node.nameFallback = !!config.nameFallback;
+    node.areaNameMatch   = !!config.areaNameMatch;            // Checkbox
+    node.extraAreaNames  = config.extraAreaNames || "";       // CSV
+    node.activeOnly      = !!config.activeOnly;               // Checkbox
+    node.staleAllow      = !!config.staleAllow;               // Checkbox
+    node.nameFallback    = !!config.nameFallback;             // (Kompatibilität)
 
     node.fetchOnDeploy = !!config.fetchOnDeploy;
-    node.autoRefresh = Number(config.autoRefresh || 0);
-    node.diag = !!config.diag;
+    node.autoRefresh   = Number(config.autoRefresh || 0);
+    node.diag          = !!config.diag;
 
     let refreshTimer = null;
     const setStatus = (text, shape = "dot", color = "blue") =>
       node.status({ fill: color, shape, text });
 
     async function runFetch(msg) {
-      const dataset = (msg && msg.dataset) || node.dataset;
+      // ---- Effektive (benutzte) Werte bestimmen (msg > node > Default) ----
+      const usedDataset = String(msg?.dataset ?? node.dataset ?? "COMMUNEUNION_CELLS_STAT").trim();
 
-      // Eingaben aus msg überschreiben (optional)
-      const warncellInput = (msg && (msg.warncells || msg.warncellIds)) || node.warncells;
-      const warncellSet = parseWarncellFilter(warncellInput);
+      const usedWarncellsStr = String(
+        msg?.warncells ?? msg?.warncellIds ?? node.warncells ?? ""
+      );
+      const usedWarncellSet = parseWarncellFilter(usedWarncellsStr);
 
-      // Area-Name-Filter nur, wenn Checkbox aktiv UND es mind. einen Namen gibt
-      const areaMatchEnabled = (msg && typeof msg.areaNameMatch === "boolean")
-        ? !!msg.areaNameMatch
-        : node.areaNameMatch;
+      const usedAreaNameMatch = Boolean(msg?.areaNameMatch ?? node.areaNameMatch);
+      const usedExtraAreaNamesStr = String(msg?.extraAreaNames ?? node.extraAreaNames ?? "");
+      const areaNameSet = usedAreaNameMatch ? parseAreaNames(usedExtraAreaNamesStr) : null;
 
-      const extraAreaNamesInput = (msg && msg.extraAreaNames != null)
-        ? String(msg.extraAreaNames)
-        : node.extraAreaNames;
+      const usedActiveOnly = Boolean(msg?.activeOnly ?? node.activeOnly);
+      const usedStaleAllow = Boolean(msg?.staleAllow ?? node.staleAllow);
 
-      const areaNameSet = areaMatchEnabled ? parseAreaNames(extraAreaNamesInput) : null;
+      if (node.diag) {
+        node.log(
+          `[DWD-Warnings] eff: dataset=${usedDataset}` +
+          ` | warncells=${Array.from(usedWarncellSet ?? []).join(",") || "-"}` +
+          ` | areaNameMatch=${usedAreaNameMatch}` +
+          ` | extraAreaNames=${Array.from(areaNameSet ?? []).join("|") || "-"}` +
+          ` | activeOnly=${usedActiveOnly}` +
+          ` | staleAllow=${usedStaleAllow}`
+        );
+      }
 
       setStatus("lade…", "dot", "blue");
 
       try {
+        // ---- Laden (mit Fallback) ----
         const { buffer, sourceUrl, stale } = await fetchZipWithFallback(
-          dataset,
+          usedDataset,
           node.diag ? node.log.bind(node) : null
         );
 
-        if (stale && !node.staleAllow) {
+        if (stale && !usedStaleAllow) {
           throw new Error("Stale-Daten sind nicht erlaubt (LATEST 404 → Verzeichnis-Fallback)");
         }
 
+        // ---- Parsen ----
         let alerts = await extractAlertsFromZipBuffer(
           buffer,
           node.diag ? node.log.bind(node) : null
         );
 
-        // Filter-Kette
+        // ---- Filtern (Union + ActiveOnly + Name-Fallback) ----
         const nowTs = Date.now();
 
-        // 1) Union aus Warncell-Filter und optionalem Area-Name-Filter
-        alerts = filterUnion(alerts, warncellSet, areaNameSet);
+        // 1) Union: Warncell ODER (areaDesc-Match, wenn aktiviert & Namen vorhanden)
+        alerts = filterUnion(alerts, usedWarncellSet, areaNameSet);
 
-        // 2) Nur aktive & zukünftige (optional)
-        if (node.activeOnly) alerts = filterActiveFuture(alerts, nowTs);
+        // 2) Nur aktive/ zukünftige
+        if (usedActiveOnly) alerts = filterActiveFuture(alerts, nowTs);
 
-        // 3) Optionale kosmetische Ergänzung
+        // 3) Optional: Namens-Fallback (kosmetisch)
         if (node.nameFallback) applyNameFallback(alerts);
 
-        if (node.diag) {
-          node.log(
-            `[DWD-Warnings] Alerts nach Filtern: ${alerts.length}` +
-            (warncellSet ? ` | Warncells: ${Array.from(warncellSet).join(",")}` : "") +
-            (areaNameSet ? ` | AreaNames: ${Array.from(areaNameSet).join(",")}` : "") +
-            (node.activeOnly ? " | onlyActive=true" : "")
-          );
-        }
+        if (node.diag) node.log(`[DWD-Warnings] Alerts nach Filtern: ${alerts.length}`);
 
-        // Sort: neueste zuerst (sent)
+        // ---- Sortierung (neueste zuerst) ----
         alerts.sort((a, b) => {
           const ta = a.sent ? Date.parse(a.sent) || 0 : 0;
           const tb = b.sent ? Date.parse(b.sent) || 0 : 0;
           return tb - ta;
         });
 
+        // ---- Ausgabe inkl. sauberem Meta-Block ----
         const out = {
           payload: alerts,
           _meta: {
             // Quelle
-            dataset: node.dataset,
+            dataset: usedDataset,
             sourceUrl,
 
             // Laufzeitstatus
-            stale: !!stale,                 // true = Ausgabe aus Cache/Fallback
+            stale: !!stale,            // true = Directory-Fallback
             total: alerts.length,
 
-            // Konfiguration (Echo)
-            staleAllow: !!node.staleAllow,  // Checkbox „Stale erlauben“
-            onlyActive: !!node.activeOnly,  // Checkbox „Nur aktive und zukünftige Meldungen“
-            filterWarncells: warncellSet ? Array.from(warncellSet) : [],
+            // Effektiv genutzte Filter/Flags
+            used: {
+              warncells: Array.from(usedWarncellSet ?? []),
+              areaNameMatch: usedAreaNameMatch,
+              extraAreaNames: Array.from(areaNameSet ?? []),
+              onlyActive: usedActiveOnly,
+              staleAllow: usedStaleAllow,
+            },
 
-            // Namensabgleich (Konfiguration + Laufzeit)
-            areaNameMatch: !!node.areaNameMatch,                   // Checkbox „Gebiets-Namensabgleich erlauben“
-            extraAreaNames: node.extraAreaNames
-              ? node.extraAreaNames.split(",").map(s => s.trim()).filter(Boolean)
-              : [],
-            usedAreaNameMatch: !!usedAreaNameMatch                 // true, wenn areaDesc-Match tatsächlich genutzt wurde
-          }
+            // Konfiguration (Node-UI) – zu Transparenzzwecken
+            configured: {
+              warncells: (node.warncells || "").split(/[,\s;]+/).map(s => s.trim()).filter(Boolean),
+              areaNameMatch: !!node.areaNameMatch,
+              extraAreaNames: (node.extraAreaNames || "").split(",").map(s => s.trim()).filter(Boolean),
+              onlyActive: !!node.activeOnly,
+              staleAllow: !!node.staleAllow,
+            },
+          },
         };
 
         setStatus(`${alerts.length} Meldungen`, "dot", stale ? "yellow" : "green");
