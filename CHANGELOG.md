@@ -1,106 +1,108 @@
 # Changelog
 
-## [1.1.4] – 2025-11-03
+## [1.1.5] - 2025-11-06
+### Docs
+- Unified README style and structure with other DWD modules for consistent documentation.
 
+## [1.1.4] – 2025-11-03
 ### Changed
-- README.md an aktuelle Code-Basis angepasst
-- Placeholder für warncells und extraAreaNames auf plausible Werte angepasst
+- README.md adapted to current code base
+- Placeholder values for warncells and extraAreaNames adjusted to plausible values
 
 ## [1.1.2] – 2025-11-03
-
 ### Fixed
-- **Fehlerbehebung:** Variable `usedAreaNameMatch` war nicht definiert und verursachte den Fehler  
-  *„DWD-Warnings Fehler: usedAreaNameMatch is not defined“*.
-- **Meta-Block überarbeitet:** Saubere Trennung zwischen `used` (effektive Laufzeitparameter)  
-  und `configured` (Node-UI-Einstellungen).
-- **Entfernt:** `nameFallback` wird nicht mehr im `_meta`-Block ausgegeben.
-- **Korrekte Parameterauswertung:** Alle Flags (`areaNameMatch`, `staleAllow`, `onlyActive` etc.)  
-  werden jetzt zuverlässig aus `msg` oder Node-Konfiguration übernommen.
-- **Verbesserte Diagnose:** Log-Ausgabe zeigt nun alle effektiv genutzten Filterparameter übersichtlich an.
+- **Bugfix:** Variable `usedAreaNameMatch` was not defined and caused the error  
+  *“DWD-Warnings error: usedAreaNameMatch is not defined”*.
+- **Meta block revised:** Clean separation between `used` (effective runtime parameters)  
+  and `configured` (Node-UI settings).
+- **Removed:** `nameFallback` is no longer output in the `_meta` block.
+- **Correct parameter evaluation:** All flags (`areaNameMatch`, `staleAllow`, `onlyActive` etc.)  
+  are now reliably taken from `msg` or node configuration.
+- **Improved diagnostics:** Log output now clearly shows all effectively used filter parameters.
 
 ## [1.1.1] - 2025-11-03
 ### Fixed
-- `_meta`-Block überarbeitet: alle Felder spiegeln jetzt korrekt die Node-Konfiguration wider  
+- `_meta` block revised: all fields now correctly reflect the node configuration  
   (`staleAllow`, `areaNameMatch`, `extraAreaNames`, `onlyActive`, …)
-- Inkonsistente Feldnamen zwischen HTML-UI und Laufzeit-Objekt behoben  
-  (z. B. `node.allowStale` → `node.staleAllow`)
-- Ausgabe enthält jetzt saubere Trennung zwischen Laufzeitstatus (`stale`, `total`)  
-  und Konfigurationseigenschaften (`staleAllow`, `onlyActive`, `areaNameMatch`, …)
+- Inconsistent field names between HTML UI and runtime object fixed  
+  (e.g. `node.allowStale` → `node.staleAllow`)
+- Output now contains a clean separation between runtime status (`stale`, `total`)  
+  and configuration properties (`staleAllow`, `onlyActive`, `areaNameMatch`, …)
 
 ### Internal
-- Code-Struktur im Output-Block vereinheitlicht und kommentiert
+- Code structure in output block unified and commented
 
 ## [1.1.0] – 2025-11-03
 
 ### Fixed
-- **404-Fehler beim Abruf der DWD-Warnungen behoben**
-    - Alte Feed-URLs (`cap_de.atom`, `COUNTY_MOWAS`, `DISTRICT_CELLS_STAT/LATEST`) durch die neuen ZIP-Feeds ersetzt:  
+- **404 error when fetching DWD warnings fixed**
+    - Old feed URLs (`cap_de.atom`, `COUNTY_MOWAS`, `DISTRICT_CELLS_STAT/LATEST`) replaced by new ZIP feeds:  
       `https://opendata.dwd.de/weather/alerts/cap/.../Z_CAP_C_EDZW_LATEST_PVW_STATUS_PREMIUMCELLS_*.zip`
-    - Fallback implementiert, falls DWD-Daten temporär nicht verfügbar ist (automatische Auswahl der neuesten Datei im Verzeichnis).
+    - Fallback implemented in case DWD data is temporarily unavailable (automatic selection of newest file in directory).
 
 ### Added
-- **Erweiterte Diagnose-Logs** über neue Checkbox *„Diagnose-Logs“* in der Node-UI.
-    - Zeigt detaillierte Fetch- und Parse-Informationen im Node-RED-Log (Status, Datensätze, Filterung, Quelle).
+- **Extended diagnostic logs** via new checkbox *“Diagnostic logs”* in the Node-UI.
+    - Shows detailed fetch and parse information in Node-RED log (status, records, filtering, source).
 
 ### Restored
-- **Vorherige UI-Optionen** (*Stale erlauben*, *Nur aktive & zukünftige*, *Gebiets-Namensabgleich*) wiederhergestellt.
-    - Diese Optionen entsprechen funktional der Version ≤ 1.0.8 und wurden neu integriert, ohne bestehende Flows zu brechen.
+- **Previous UI options** (*Allow stale*, *Only active & future*, *Area name matching*) restored.
+    - These options correspond functionally to version ≤ 1.0.8 and were re-integrated without breaking existing flows.
 
 ## [1.0.8] - 2025-10-30
 ### Changed
-- Release-Prozess verbessert:
-    - Neues Skript `scripts/ensure-changelog.js` prüft beim Versions-Bump automatisch, ob die `CHANGELOG.md` geändert und gestaged wurde.
-    - Neue `preversion`, `version` und `postversion` Hooks in der `package.json` für konsistente Commits und automatischen Push.
-- `package.json` um Release-Skripte erweitert und Build-Prozess optimiert.
-- Keine funktionalen Änderungen am Node-Code selbst.
+- Release process improved:
+    - New script `scripts/ensure-changelog.js` automatically checks during version bump whether `CHANGELOG.md` was changed and staged.
+    - New `preversion`, `version` and `postversion` hooks in `package.json` for consistent commits and automatic push.
+- `package.json` extended with release scripts and build process optimized.
+- No functional changes to the node code itself.
 
 ## [1.0.7] - 2025-10-30
 ### Changed
-- HTTP-Client: Migration von `request` (deprecated) zu `axios`
-- Stabileres Fehler- und Timeout-Handling bei DWD-Abrufen
+- HTTP client: Migrated from `request` (deprecated) to `axios`
+- More stable error and timeout handling for DWD fetches
 
 ## [1.0.6] - 2025-10-30
 ### Changed
-- Dependencies aktualisiert: moment, moment-timezone, xml2js (Scorecard „latest deps“)
-- Verifikation: `node-red.version` auf npm vorhanden (Scorecard-Hinweis war Cache)
+- Dependencies updated: moment, moment-timezone, xml2js (Scorecard “latest deps”)
+- Verification: `node-red.version` present on npm (Scorecard hint was cache)
 
 ## [1.0.5] - 2025-10-30
 ### Changed
-- Release workflow (`.github/workflows/release.yml`) überarbeitet:
-    - Automatische Erstellung von GitHub Releases mit Release Notes
-    - Pflege des `latest`-Tags für klare Zuordnung aktueller Version
-    - Bessere Sicherheits- und Konsistenzchecks vor npm-Publish
-- `package.json`: Mindestversionen ergänzt
+- Release workflow (`.github/workflows/release.yml`) revised:
+    - Automatic creation of GitHub releases with release notes
+    - Maintenance of the `latest` tag for clear assignment of current version
+    - Better security and consistency checks before npm publish
+- `package.json`: Minimum versions added
   - Node-RED: `"node-red.version": ">=3.0.0"`
   - Node.js/NPM: `"engines": { "node": ">=18.0.0", "npm": ">=9.0.0" }`
-- Beispiele ergänzt: `examples/weatherwarnings-basic.json` (für Scorecard „Examples“)
-- Metadata/Files: `files`-Feld enthält jetzt `examples/` und `CHANGELOG.md`
+- Examples added: `examples/weatherwarnings-basic.json` (for Scorecard “Examples”)
+- Metadata/Files: `files` field now includes `examples/` and `CHANGELOG.md`
 
 ### Security / Maintenance
-- Abhängigkeiten auf aktuelle Ranges geprüft (Scorecard-Hinweis)
+- Dependencies checked for current ranges (Scorecard hint)
 
 ## [1.0.4] - 2025-10-30
 ### Changed
-- Metadaten in `package.json` erweitert (`homepage`, `bugs`, `publishConfig`, `engines`)
-- Darstellung und Verlinkung auf npm und flows.nodered.org verbessert
+- Metadata in `package.json` extended (`homepage`, `bugs`, `publishConfig`, `engines`)
+- Presentation and linking on npm and flows.nodered.org improved
 
 ## [1.0.3] - 2025-10-30
 ### Added
-- Neue `.gitignore` im Repository-Root für Node.js-, Node-RED- und WebStorm-Projekte
-- Neue `CHANGELOG.md` zur separaten Pflege von Versionsänderungen
+- New `.gitignore` in repository root for Node.js, Node-RED, and WebStorm projects
+- New `CHANGELOG.md` for separate maintenance of version changes
 
 ### Changed
-- README.md angepasst: Changelog-Abschnitt entfernt und Link zur `CHANGELOG.md` ergänzt
-- Kleinere Formatierungen und Strukturverbesserungen in der Dokumentation
+- README.md adapted: Changelog section removed and link to `CHANGELOG.md` added
+- Minor formatting and structural improvements in documentation
 
 ## [1.0.2] - 2025-10-30
 ### Fixed
-- Workflow-Tag v1.0.1 enthielt keine `release.yml` → Release nicht getriggert
-- Neuer Tag v1.0.2 startet nun den automatischen npm-Release korrekt
+- Workflow tag v1.0.1 did not contain `release.yml` → release not triggered
+- New tag v1.0.2 now starts automatic npm release correctly
 
 ### Changed
-- Repository mit GitHub Actions `release.yml` synchronisiert
-- NPM-Veröffentlichung erfolgreich getestet
+- Repository synchronized with GitHub Actions `release.yml`
+- NPM publication successfully tested
 
 ## [1.0.1] - 2025-10-30
 ### Added
@@ -111,4 +113,3 @@
 - Added HTML summary output
 - Added “only active/future” filter
 - Added core-only output mode
-
