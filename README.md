@@ -1,4 +1,4 @@
-<file name=1 path=README.md># node-red-contrib-dwd-weatherwarnings
+# node-red-contrib-dwd-weatherwarnings
 
 A Node-RED node that retrieves **official weather warnings** from the  
 **Deutscher Wetterdienst (DWD)** WARN_L open data API.
