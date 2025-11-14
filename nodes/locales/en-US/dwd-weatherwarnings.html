@@ -1,0 +1,121 @@
+<script type="text/html" data-help-name="dwd-weatherwarnings">
+    <p>
+        The <b>DWD Weather Warnings</b> node fetches official CAP weather warnings
+        from the German Weather Service (DWD) via the public OpenData endpoint.
+    </p>
+
+    <h3>Configuration</h3>
+    <dl>
+        <dt>Name</dt>
+        <dd>
+            Optional display name shown in the Node-RED editor. If empty, a default label is used.
+        </dd>
+
+        <dt>Dataset</dt>
+        <dd>
+            Selects the spatial resolution of the warnings:
+            <ul>
+                <li><b>COMMUNEUNION_CELLS_STAT</b> – finer resolution (recommended)</li>
+                <li><b>DISTRICT_CELLS_STAT</b> – coarser, by district</li>
+            </ul>
+        </dd>
+
+        <dt>Warncell ID(s)</dt>
+        <dd>
+            One or more <code>WARNCELLID</code> values used to filter the feed.
+            You can enter multiple IDs separated by commas or whitespace.
+            If left empty, all warnings for the dataset are considered.
+        </dd>
+
+        <dt>Name fallback / Additional area names</dt>
+        <dd>
+            If “Name fallback” is enabled and additional area names are configured,
+            the node will also keep warnings whose <code>areaDesc</code> contains at
+            least one of the configured names (case-insensitive).
+            This is useful when warncell IDs are not sufficient or when you want
+            to match city/region names.
+        </dd>
+
+        <dt>Only active &amp; future</dt>
+        <dd>
+            If enabled, expired warnings are filtered out. Only warnings that are
+            currently active or start in the future are passed through.
+        </dd>
+
+        <dt>Allow stale</dt>
+        <dd>
+            Controls the behaviour when the <code>_LATEST</code> CAP file is not available
+            (HTTP 404). If enabled, the node tries to fall back to the newest CAP file
+            from the corresponding directory. If disabled, the node fails with an error.
+        </dd>
+
+        <dt>Auto-refresh (sec)</dt>
+        <dd>
+            Optional interval (in seconds) for automatic background updates.
+            Set to <code>0</code> to disable periodic fetches.
+        </dd>
+
+        <dt>Fetch on deploy</dt>
+        <dd>
+            If enabled, the node performs an immediate fetch when the flow is deployed.
+        </dd>
+
+        <dt>Diagnostics</dt>
+        <dd>
+            When enabled, the node writes additional diagnostic messages to the
+            Node-RED log. Useful for troubleshooting URL issues, CAP parsing
+            or filtering behaviour.
+        </dd>
+    </dl>
+
+    <h3>Inputs</h3>
+    <p>
+        Any incoming message triggers a fetch from the DWD CAP endpoint.
+        The content of the incoming message is not inspected; it is only used
+        as a trigger.
+    </p>
+
+    <h3>Outputs</h3>
+    <p>
+        The node sends a single message containing the filtered warnings:
+    </p>
+    <dl>
+        <dt>msg.payload</dt>
+        <dd>
+            An array of simplified warning objects. Each object contains fields like:
+            <ul>
+                <li><code>event</code> – type of weather event (storm, heavy rain, …)</li>
+                <li><code>desc</code> – area description</li>
+                <li><code>from</code> – start time (effective/onset)</li>
+                <li><code>until</code> – end time (expires)</li>
+                <li><code>capId</code> – warncell ID, if available</li>
+            </ul>
+        </dd>
+
+        <dt>msg</dt>
+        <dd>
+            Additional metadata may be added in future versions. The primary data is
+            always in <code>msg.payload</code>.
+        </dd>
+    </dl>
+
+    <h3>Status</h3>
+    <p>
+        The node reports its current state via the status text under the node:
+    </p>
+    <ul>
+        <li><b>loading…</b> – a CAP document is being fetched</li>
+        <li><b>ready</b> – idle, waiting for input or auto-refresh</li>
+        <li><b>N warnings</b> – number of warnings after filtering</li>
+        <li><b>error</b> – an error occurred while fetching or parsing</li>
+        <li><b>stale (… warnings)</b> – stale data used from directory fallback</li>
+    </ul>
+
+    <h3>Data source</h3>
+    <p>
+        Warnings are fetched from DWD OpenData CAP feeds:
+        <code>https://opendata.dwd.de/weather/alerts/cap/</code>.
+        For details about the structure and available datasets, refer to the
+        official DWD OpenData documentation.
+    </p>
+</script>

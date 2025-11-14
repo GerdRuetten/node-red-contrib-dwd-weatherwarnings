@@ -1,0 +1,58 @@
+{
+  "paletteLabel": "DWD-Wetterwarnungen",
+
+  "label": {
+    "defaultName": "DWD-Wetterwarnungen",
+    "name": "Name",
+    "dataset": "Dataset",
+    "warncells": "Warncell-ID(s)",
+    "areaNameMatch": "Name-Fallback",
+    "extraAreaNames": "Zusätzliche Gebietsnamen",
+    "activeOnly": "Nur aktive & zukünftige",
+    "staleAllow": "Stale erlauben",
+    "autoRefresh": "Auto-Refresh (Sek.)",
+    "fetchOnDeploy": "Beim Deploy abrufen",
+    "diag": "Diagnose-Logs"
+  },
+
+  "ui": {
+    "datasetTip": "Auflösung wählen: COMMUNEUNION (Gemeindeverband, fein) oder DISTRICT (Landkreis, gröber).",
+    "datasetCommuneunion": "COMMUNEUNION_CELLS_STAT (feiner, empfohlen)",
+    "datasetDistrict": "DISTRICT_CELLS_STAT (gröber)",
+
+    "warncellsPlaceholder": "z. B. 105315000, 105111000",
+    "warncellsTip": "Filter auf spezifische WARNCELLID. Mehrere IDs mit Komma oder Leerzeichen trennen. Leer lassen = alle Meldungen.",
+    "warncellsLinkText": "Liste der DWD Warncell-IDs anzeigen",
+
+    "areaNameMatchLabel": "Gebiets-Namensabgleich erlauben (areaDesc)",
+    "areaNameMatchTip": "Wenn aktiv und unten Namen angegeben sind, werden Warnungen zusätzlich behalten, wenn areaDesc einen der Namen enthält (Groß/Kleinschreibung egal).",
+
+    "extraAreaNamesPlaceholder": "z. B. Köln, Düsseldorf, Deutz",
+    "extraAreaNamesTip": "Kommagetrennt. Beim Filtern wird Warncell-Match ODER Gebietsname in areaDesc verwendet.",
+
+    "activeOnlyLabel": "Nur aktive & zukünftige",
+    "activeOnlyTip": "Wenn aktiv, enthält die Ausgabe nur Meldungen, die aktuell laufen oder in der Zukunft liegen.",
+
+    "staleAllowLabel": "Stale erlauben",
+    "staleAllowTip": "Erlaube Fallback auf die neueste Datei aus dem Verzeichnis, wenn _LATEST_ 404 liefert. Ist die Option aus, bricht der Node mit Fehler ab.",
+
+    "autoRefreshTip": "Intervall für automatische Abrufe in Sekunden. 0 = deaktiviert.",
+
+    "fetchOnDeployLabel": "Beim Deploy abrufen",
+    "fetchOnDeployTip": "Direkten Datenabruf bei Deploy aktivieren.",
+
+    "diagLabel": "Diagnose-Logs",
+    "diagTip": "Zusätzliche Protokollierung im Node-RED-Log aktivieren."
+  },
+
+  "runtime": {
+    "statusLoading": "lade…",
+    "statusReady": "bereit",
+    "statusOk": "__count__ Meldungen",
+    "statusError": "Fehler",
+    "statusStale": "veraltet (__count__ Meldungen)",
+
+    "errorStaleNotAllowed": "Stale-Daten sind nicht erlaubt (LATEST 404 → Verzeichnis-Fallback).",
+    "errorFetch": "Fehler beim Abrufen der DWD-Warnungen: __error__"
+  }
+}

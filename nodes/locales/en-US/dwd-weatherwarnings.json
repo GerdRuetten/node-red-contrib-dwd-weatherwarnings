@@ -1,0 +1,58 @@
+{
+  "paletteLabel": "DWD Weather Warnings",
+
+  "label": {
+    "defaultName": "DWD Weather Warnings",
+    "name": "Name",
+    "dataset": "Dataset",
+    "warncells": "Warncell ID(s)",
+    "areaNameMatch": "Name fallback",
+    "extraAreaNames": "Additional area names",
+    "activeOnly": "Only active & future",
+    "staleAllow": "Allow stale",
+    "autoRefresh": "Auto-refresh (sec)",
+    "fetchOnDeploy": "Fetch on deploy",
+    "diag": "Diagnostics"
+  },
+
+  "ui": {
+    "datasetTip": "Choose spatial resolution: COMMUNEUNION (finer) or DISTRICT (coarser).",
+    "datasetCommuneunion": "COMMUNEUNION_CELLS_STAT (finer, recommended)",
+    "datasetDistrict": "DISTRICT_CELLS_STAT (coarser)",
+
+    "warncellsPlaceholder": "e.g. 105315000, 105111000",
+    "warncellsTip": "Filter by specific WARNCELLID. Separate multiple IDs by comma or whitespace. Leave empty to keep all warnings.",
+    "warncellsLinkText": "Open list of DWD Warncell-IDs",
+
+    "areaNameMatchLabel": "Allow area name matching (areaDesc)",
+    "areaNameMatchTip": "If enabled and names are configured below, alerts are also kept when areaDesc contains one of the names (case-insensitive).",
+
+    "extraAreaNamesPlaceholder": "e.g. Köln, Düsseldorf, Deutz",
+    "extraAreaNamesTip": "Comma-separated list. Filter uses Warncell match OR name match in areaDesc.",
+
+    "activeOnlyLabel": "Only active & future alerts",
+    "activeOnlyTip": "Filters out alerts that already expired.",
+
+    "staleAllowLabel": "Allow stale data",
+    "staleAllowTip": "Allow fallback to newest directory file when _LATEST_ returns 404. If disabled, the node will error in this case.",
+
+    "autoRefreshTip": "Interval for automatic fetches in seconds. 0 = disabled.",
+
+    "fetchOnDeployLabel": "Fetch on deploy",
+    "fetchOnDeployTip": "Trigger an initial fetch immediately after deploy.",
+
+    "diagLabel": "Diagnostics",
+    "diagTip": "Enable additional diagnostic log messages in the Node-RED log."
+  },
+
+  "runtime": {
+    "statusLoading": "loading…",
+    "statusReady": "ready",
+    "statusOk": "__count__ warnings",
+    "statusError": "error",
+    "statusStale": "stale (__count__ warnings)",
+
+    "errorStaleNotAllowed": "Stale data not allowed (LATEST 404 → directory fallback).",
+    "errorFetch": "Error fetching DWD warnings: __error__"
+  }
+}

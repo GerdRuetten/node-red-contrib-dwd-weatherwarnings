@@ -1,0 +1,123 @@
+<script type="text/html" data-help-name="dwd-weatherwarnings">
+    <p>
+        Der Node <b>DWD-Wetterwarnungen</b> ruft offizielle CAP-Wetterwarnungen des
+        Deutschen Wetterdienstes (DWD) über die OpenData-Schnittstelle ab.
+    </p>
+
+    <h3>Konfiguration</h3>
+    <dl>
+        <dt>Name</dt>
+        <dd>
+            Optionaler Anzeigename im Node-RED-Editor. Wenn leer, wird eine
+            Standardbezeichnung verwendet.
+        </dd>
+
+        <dt>Dataset</dt>
+        <dd>
+            Steuert die räumliche Auflösung der Warnungen:
+            <ul>
+                <li><b>COMMUNEUNION_CELLS_STAT</b> – feinere Auflösung (empfohlen)</li>
+                <li><b>DISTRICT_CELLS_STAT</b> – gröber, auf Landkreisebene</li>
+            </ul>
+        </dd>
+
+        <dt>Warncell-ID(s)</dt>
+        <dd>
+            Eine oder mehrere <code>WARNCELLID</code>-Werte, um die CAP-Daten zu filtern.
+            Mehrere IDs können mit Komma oder Leerzeichen getrennt werden.
+            Wird dieses Feld leer gelassen, werden grundsätzlich alle Warnungen
+            des gewählten Datasets betrachtet.
+        </dd>
+
+        <dt>Name-Fallback / Zusätzliche Gebietsnamen</dt>
+        <dd>
+            Ist der Name-Fallback aktiv und sind zusätzliche Gebietsnamen hinterlegt,
+            behält der Node auch Warnungen, deren <code>areaDesc</code> einen der
+            konfigurierten Namen enthält (Groß-/Kleinschreibung egal).
+            Das ist hilfreich, wenn Warncell-IDs allein nicht ausreichen oder wenn
+            man auf bestimmte Stadt-/Regionsnamen filtern möchte.
+        </dd>
+
+        <dt>Nur aktive &amp; zukünftige</dt>
+        <dd>
+            Wenn diese Option aktiv ist, werden abgelaufene Warnungen verworfen.
+            Es bleiben nur Warnungen übrig, die aktuell gültig sind oder in der Zukunft beginnen.
+        </dd>
+
+        <dt>Stale erlauben</dt>
+        <dd>
+            Steuert das Verhalten, wenn die Datei <code>_LATEST</code> nicht verfügbar ist
+            (HTTP-Status 404).
+            Ist die Option aktiviert, versucht der Node auf die neueste CAP-Datei im
+            entsprechenden Verzeichnis zurückzufallen.
+            Ist sie deaktiviert, wird in diesem Fall ein Fehler ausgelöst.
+        </dd>
+
+        <dt>Auto-Refresh (Sek.)</dt>
+        <dd>
+            Optionales Intervall in Sekunden für automatische Aktualisierungen.
+            Der Wert <code>0</code> deaktiviert den automatischen Abruf.
+        </dd>
+
+        <dt>Beim Deploy abrufen</dt>
+        <dd>
+            Wenn aktiv, führt der Node unmittelbar nach dem Deploy einen ersten Abruf durch.
+        </dd>
+
+        <dt>Diagnose-Logs</dt>
+        <dd>
+            Schreibt zusätzliche Diagnose-Informationen ins Node-RED-Log.
+            Hilfreich bei der Fehlersuche (z. B. URL, CAP-Parsing, Filterlogik).
+        </dd>
+    </dl>
+
+    <h3>Eingänge</h3>
+    <p>
+        Jede eingehende Nachricht löst einen Abruf der DWD-CAP-Daten aus.
+        Der Inhalt der Nachricht wird nicht ausgewertet, sie dient nur als Trigger.
+    </p>
+
+    <h3>Ausgänge</h3>
+    <p>
+        Der Node gibt eine Nachricht mit den gefilterten Warnungen aus:
+    </p>
+    <dl>
+        <dt>msg.payload</dt>
+        <dd>
+            Ein Array vereinfachter Warnobjekte mit Feldern wie:
+            <ul>
+                <li><code>event</code> – Typ der Warnung (Sturm, Starkregen, …)</li>
+                <li><code>desc</code> – Gebiets- bzw. Bereichsbeschreibung</li>
+                <li><code>from</code> – Beginn (effective/onset)</li>
+                <li><code>until</code> – Ende (expires)</li>
+                <li><code>capId</code> – Warncell-ID, falls verfügbar</li>
+            </ul>
+        </dd>
+
+        <dt>msg</dt>
+        <dd>
+            Weitere Metadaten können in zukünftigen Versionen ergänzt werden.
+            Die eigentlichen Daten befinden sich in <code>msg.payload</code>.
+        </dd>
+    </dl>
+
+    <h3>Status</h3>
+    <p>
+        Der Node zeigt seinen Zustand über den Status unterhalb des Nodes an:
+    </p>
+    <ul>
+        <li><b>loading…</b> – CAP-Dokument wird abgerufen</li>
+        <li><b>ready</b> – bereit, wartet auf Eingänge oder Auto-Refresh</li>
+        <li><b>N warnings / N Meldungen</b> – Anzahl der Warnungen nach Filterung</li>
+        <li><b>error / Fehler</b> – beim Abruf oder Parsing ist ein Fehler aufgetreten</li>
+        <li><b>stale (… warnings)</b> – veraltete Daten aus dem Verzeichnis-Fallback</li>
+    </ul>
+
+    <h3>Datenquelle</h3>
+    <p>
+        Die Warnungen werden aus den DWD OpenData CAP-Feeds geladen:
+        <code>https://opendata.dwd.de/weather/alerts/cap/</code>.
+        Details zur Struktur, verfügbaren Datasets und zu den Warncell-IDs finden sich
+        in der offiziellen DWD-OpenData-Dokumentation.
+    </p>
+</script>
