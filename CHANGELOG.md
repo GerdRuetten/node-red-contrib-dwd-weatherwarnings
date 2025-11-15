@@ -1,6 +1,9 @@
 # Changelog
 
-## [1.2.0] - 2025-11-15
+## [1.2.1] - 2025-11-15
+### Fixed
+- Release workflow corrected (previous v1.2.0 failed before publishing)
+
 ### Added
 - Full internationalization (i18n) support for all UI elements.
     - Runtime messages localized via `RED._(...)`.

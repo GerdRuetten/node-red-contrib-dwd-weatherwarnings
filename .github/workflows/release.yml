@@ -50,7 +50,8 @@ jobs:
             echo "No version change to commit."
           else
             git commit -m "chore: set version to ${{ steps.tag.outputs.VERSION }}"
-            git push
+            # Wir sind in einem detached HEAD (Tag), also explizit auf main pushen:
+            git push origin HEAD:main
           fi
 
       - name: Setup Node.js
