@@ -1,47 +1,73 @@
 [
   {
-    "id": "inj1",
+    "id": "wwex1",
+    "type": "tab",
+    "label": "DWD Weatherwarnings - Basic Example"
+  },
+  {
+    "id": "ww_comment",
+    "type": "comment",
+    "z": "wwex1",
+    "name": "DWD Weather Warnings - Basic Example",
+    "info": "Demonstrates basic usage of the DWD Weatherwarnings node:\n\n- manual trigger via Inject\n- configure dataset + warncell ID\n- view resulting alerts in Debug",
+    "x": 360,
+    "y": 60,
+    "wires": []
+  },
+  {
+    "id": "ww_inject",
     "type": "inject",
-    "z": "flow1",
+    "z": "wwex1",
     "name": "manual trigger",
-    "props": [{"p":"payload"}],
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
     "repeat": "",
     "once": true,
     "onceDelay": 0.2,
     "topic": "",
     "payloadType": "date",
-    "x": 180,
-    "y": 120,
-    "wires": [["dwd1"]]
+    "x": 170,
+    "y": 140,
+    "wires": [
+      [
+        "ww_node"
+      ]
+    ]
   },
   {
-    "id": "dwd1",
+    "id": "ww_node",
     "type": "dwd-weatherwarnings",
-    "z": "flow1",
-    "name": "DWD Weatherwarnings",
-    "regionCode": "805362004",
-    "allowNameFallback": true,
-    "extraRegionNames": "Stadt Bedburg",
-    "onlyActiveFuture": true,
-    "fireOnDeploy": false,
-    "autoRefreshSec": 0,
+    "z": "wwex1",
+    "name": "",
+    "dataset": "COMMUNEUNION_CELLS_STAT",
+    "warncellId": "",
+    "onlyActive": true,
     "allowStale": true,
+    "autoRefresh": 0,
+    "fetchOnDeploy": true,
+    "diag": false,
     "x": 400,
-    "y": 120,
-    "wires": [["dbg1"]]
+    "y": 140,
+    "wires": [
+      [
+        "ww_debug"
+      ]
+    ]
   },
   {
-    "id": "dbg1",
+    "id": "ww_debug",
     "type": "debug",
-    "z": "flow1",
+    "z": "wwex1",
     "name": "warnings",
     "active": true,
     "tosidebar": true,
-    "console": false,
-    "tostatus": false,
-    "complete": "true",
+    "complete": "payload",
+    "targetType": "msg",
     "x": 650,
-    "y": 120,
+    "y": 140,
     "wires": []
   }
 ]

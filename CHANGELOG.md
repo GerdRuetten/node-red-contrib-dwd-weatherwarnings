@@ -1,5 +1,47 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+## Unreleased
+
+- (none)
+
+## [1.3.1] – 2025-11-21
+
+### Changed
+- Simplified warncell handling: the node now accepts **only a single Warncell-ID**, ensuring clear and deterministic filtering.
+- Runtime logic unified: both DWD datasets (**COMMUNEUNION** & **DISTRICT**) are automatically checked, regardless of where the Warncell-ID appears.
+
+### Added
+- Each alert now includes two new fields for clarity:
+  - **`configuredWarncellId`** – the Warncell-ID effectively used for filtering
+  - **`filterWarncellId` / `filterWarncellIds`** – the Warncell-IDs matched inside the alert
+
+### Fixed
+- Filtering behaviour now consistent across all datasets.
+- Resolved previous ambiguity where multiple Warncells produced unpredictable grouping/merging.
+
+## [1.3.0] - 2025-11-16
+### Added
+- Fully rewritten **English README** (modern, structured, consistent with all DWD nodes)
+- Brand-new **German README (`README_de.md`)**
+- Updated and standardised **example flow** (`examples/weatherwarnings-basic.json`)
+- Added detailed installation instructions (including Palette Manager)
+
+### Changed
+- Documentation fully modernised and unified across Pollen, Forecast, Rainradar and Weatherwarnings
+- Improved i18n documentation and clarified translator file structure
+- Refined descriptions of dataset selection, warncell handling and stale-mode behaviour
+- Cleanup and optimisation of configuration explanations and terminology
+
+### Fixed
+- Removed outdated or inconsistent documentation content
+- Minor formatting and markdown corrections
+
+### CI
+- Automatically mark `-beta`, `-alpha` and `-rc` tags as **GitHub pre-releases**.
+
+
 ## [1.2.1] - 2025-11-15
 ### Fixed
 - Release workflow corrected (previous v1.2.0 failed before publishing)

@@ -20,8 +20,8 @@
     "datasetCommuneunion": "COMMUNEUNION_CELLS_STAT (finer, recommended)",
     "datasetDistrict": "DISTRICT_CELLS_STAT (coarser)",
 
-    "warncellsPlaceholder": "e.g. 105315000, 105111000",
-    "warncellsTip": "Filter by specific WARNCELLID. Separate multiple IDs by comma or whitespace. Leave empty to keep all warnings.",
+    "warncellsPlaceholder": "e.g. 105315000",
+    "warncellsTip": "Filter by specific WARNCELLID. Leave empty to keep all warnings.",
     "warncellsLinkText": "Open list of DWD Warncell-IDs",
 
     "areaNameMatchLabel": "Allow area name matching (areaDesc)",

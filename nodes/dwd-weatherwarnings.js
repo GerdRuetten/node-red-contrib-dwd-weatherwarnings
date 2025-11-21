@@ -1,399 +1,476 @@
 module.exports = function (RED) {
-  "use strict";
-  const axios = require("axios");
-  const AdmZip = require("adm-zip");
-  const { parseStringPromise } = require("xml2js");
+    "use strict";
+    const axios = require("axios");
+    const AdmZip = require("adm-zip");
+    const { parseStringPromise } = require("xml2js");
 
-  // --- DATASET Mapping ---
-  const DATASETS = {
-    COMMUNEUNION_CELLS_STAT: "COMMUNEUNION",
-    DISTRICT_CELLS_STAT: "DISTRICT",
-  };
+    // --- DATASET Mapping ---
+    const DATASETS = {
+        COMMUNEUNION_CELLS_STAT: "COMMUNEUNION",
+        DISTRICT_CELLS_STAT: "DISTRICT",
+    };
 
-  const BASE_DIR = "https://opendata.dwd.de/weather/alerts/cap";
+    const BASE_DIR = "https://opendata.dwd.de/weather/alerts/cap";
 
-  function buildLatestZipUrl(datasetKey) {
-    const dir = datasetKey;
-    const kind = DATASETS[datasetKey];
-    if (!dir || !kind) throw new Error(`Ungültiger Dataset-Key: ${datasetKey}`);
-    return `${BASE_DIR}/${dir}/Z_CAP_C_EDZW_LATEST_PVW_STATUS_PREMIUMCELLS_${kind}_DE.zip`;
-  }
-
-  async function findNewestZipUrl(datasetKey, logFn) {
-    const dir = datasetKey;
-    const kind = DATASETS[datasetKey];
-    const indexUrl = `${BASE_DIR}/${dir}/`;
-    const res = await axios.get(indexUrl, { responseType: "text", validateStatus: () => true });
-    if (res.status !== 200) throw new Error(`Index HTTP ${res.status}`);
-
-    const re = new RegExp(
-      `Z_CAP_C_EDZW_([0-9]{14})_PVW_STATUS_PREMIUMCELLS_${kind}_DE\\.zip`,
-      "g"
-    );
-
-    const matches = [];
-    let m;
-    while ((m = re.exec(res.data))) matches.push({ name: m[0], ts: m[1] });
-    if (!matches.length) return buildLatestZipUrl(datasetKey);
-
-    matches.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
-    const newest = matches[0].name;
-    return `${BASE_DIR}/${dir}/${newest}`;
-  }
-
-  async function downloadZipBuffer(url, logFn) {
-    const res = await axios.get(url, { responseType: "arraybuffer", validateStatus: () => true });
-    if (logFn) logFn(`[DWD-Warnings] GET ${url} → ${res.status}`);
-    if (res.status !== 200) {
-      const err = new Error(`HTTP ${res.status}`);
-      err.status = res.status;
-      throw err;
+    function buildLatestZipUrl(datasetKey) {
+        const dir = datasetKey;
+        const kind = DATASETS[datasetKey];
+        if (!dir || !kind) throw new Error(`Ungültiger Dataset-Key: ${datasetKey}`);
+        return `${BASE_DIR}/${dir}/Z_CAP_C_EDZW_LATEST_PVW_STATUS_PREMIUMCELLS_${kind}_DE.zip`;
     }
-    return res.data;
-  }
 
-  async function fetchZipWithFallback(datasetKey, logFn) {
-    const latestUrl = buildLatestZipUrl(datasetKey);
-    try {
-      return { buffer: await downloadZipBuffer(latestUrl, logFn), sourceUrl: latestUrl, stale: false };
-    } catch (e) {
-      if (e && e.status === 404) {
-        if (logFn) logFn(`[DWD-Warnings] LATEST 404 – Fallback auf Directory-Listing…`);
-        const newestUrl = await findNewestZipUrl(datasetKey, logFn);
-        const buf = await downloadZipBuffer(newestUrl, logFn);
-        return { buffer: buf, sourceUrl: newestUrl, stale: true };
-      }
-      throw e;
+    async function findNewestZipUrl(datasetKey, logFn) {
+        const dir = datasetKey;
+        const kind = DATASETS[datasetKey];
+        const indexUrl = `${BASE_DIR}/${dir}/`;
+        const res = await axios.get(indexUrl, {
+            responseType: "text",
+            validateStatus: () => true,
+        });
+        if (res.status !== 200) throw new Error(`Index HTTP ${res.status}`);
+
+        const re = new RegExp(
+            `Z_CAP_C_EDZW_([0-9]{14})_PVW_STATUS_PREMIUMCELLS_${kind}_DE\\.zip`,
+            "g"
+        );
+
+        const matches = [];
+        let m;
+        while ((m = re.exec(res.data))) matches.push({ name: m[0], ts: m[1] });
+        if (!matches.length) return buildLatestZipUrl(datasetKey);
+
+        matches.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
+        const newest = matches[0].name;
+        return `${BASE_DIR}/${dir}/${newest}`;
     }
-  }
 
-  // --- Helpers ---
-  const asArray = (x) => (x == null ? [] : Array.isArray(x) ? x : [x]);
-  const textOf = (node) =>
-    typeof node === "string" ? node : node && typeof node._ === "string" ? node._ : null;
-
-  // CAP → Normalisierte Warnung
-  function normalizeAlert(cap, srcName) {
-    const a = cap.alert || cap["cap:alert"] || cap;
-    if (!a) return null;
-
-    const id = asArray(a.identifier).map(textOf)[0] || null;
-    const sender = asArray(a.sender).map(textOf)[0] || null;
-    const sent = asArray(a.sent).map(textOf)[0] || null;
-    const status = asArray(a.status).map(textOf)[0] || null;
-    const msgType = asArray(a.msgType).map(textOf)[0] || null;
-    const scope = asArray(a.scope).map(textOf)[0] || null;
-
-    const info = asArray(a.info).map((i) => {
-      const lang = asArray(i.language).map(textOf)[0] || null;
-      const category = asArray(i.category).map(textOf)[0] || null;
-      const event = asArray(i.event).map(textOf)[0] || null;
-      const urgency = asArray(i.urgency).map(textOf)[0] || null;
-      const severity = asArray(i.severity).map(textOf)[0] || null;
-      const certainty = asArray(i.certainty).map(textOf)[0] || null;
-      const headline = asArray(i.headline).map(textOf)[0] || null;
-      const description = asArray(i.description).map(textOf)[0] || null;
-      const instruction = asArray(i.instruction).map(textOf)[0] || null;
-      const onset = asArray(i.onset).map(textOf)[0] || null;
-      const expires = asArray(i.expires).map(textOf)[0] || null;
-      const senderName = asArray(i.senderName).map(textOf)[0] || null;
-
-      // area + geocode → WARNCELLID + areaDesc
-      const warncells = [];
-      const areaDescs = [];
-      for (const area of asArray(i.area)) {
-        const desc = asArray(area.areaDesc).map(textOf)[0];
-        if (desc) areaDescs.push(desc);
-        for (const g of asArray(area.geocode)) {
-          const vn = asArray(g.valueName).map(textOf)[0];
-          const vv = asArray(g.value).map(textOf)[0];
-          if (vn && vv && vn.toUpperCase() === "WARNCELLID") warncells.push(vv);
+    async function downloadZipBuffer(url, logFn) {
+        const res = await axios.get(url, {
+            responseType: "arraybuffer",
+            validateStatus: () => true,
+        });
+        if (logFn) logFn(`[DWD-Warnings] GET ${url} → ${res.status}`);
+        if (res.status !== 200) {
+            const err = new Error(`HTTP ${res.status}`);
+            err.status = res.status;
+            throw err;
         }
-      }
+        return res.data;
+    }
 
-      return {
-        lang, category, event, urgency, severity, certainty,
-        headline, description, instruction, onset, expires, senderName,
-        areaDesc: areaDescs.join("; "),
-        warncellIds: Array.from(new Set(warncells)),
-      };
-    });
+    async function fetchZipWithFallback(datasetKey, logFn) {
+        const latestUrl = buildLatestZipUrl(datasetKey);
+        try {
+            return {
+                buffer: await downloadZipBuffer(latestUrl, logFn),
+                sourceUrl: latestUrl,
+                stale: false,
+            };
+        } catch (e) {
+            if (e && e.status === 404) {
+                if (logFn) logFn(`[DWD-Warnings] LATEST 404 – Fallback auf Directory-Listing…`);
+                const newestUrl = await findNewestZipUrl(datasetKey, logFn);
+                const buf = await downloadZipBuffer(newestUrl, logFn);
+                return { buffer: buf, sourceUrl: newestUrl, stale: true };
+            }
+            throw e;
+        }
+    }
 
-    const references = asArray(a.references).map(textOf)[0] || null;
+    // --- MULTI DATASET FETCH WRAPPER ---
+    // Holt COMMUNEUNION + DISTRICT, parsed beide und merged Alerts.
+    async function fetchAllDatasets(logFn, parseCapFilesFn) {
+        const DATASET_KEYS = ["COMMUNEUNION_CELLS_STAT", "DISTRICT_CELLS_STAT"];
+        let mergedAlerts = [];
 
-    return { id, sender, sent, status, msgType, scope, info, references, source: srcName || null };
-  }
+        for (const ds of DATASET_KEYS) {
+            try {
+                if (logFn) logFn(`[DWD-Warnings] Lade Dataset: ${ds}`);
 
-  async function extractAlertsFromZipBuffer(buffer, logFn) {
-    const zip = new AdmZip(buffer);
-    const entries = zip.getEntries();
+                // ZIP holen (mit Fallback-Mechanismus)
+                const { buffer, sourceUrl, stale } = await fetchZipWithFallback(ds, logFn);
 
-    const xmlEntries = entries.filter((e) => e.entryName.toLowerCase().match(/\.(xml|cap)$/));
-    if (logFn) logFn(`[DWD-Warnings] ZIP enthält ${xmlEntries.length} CAP/XML-Datei(en)`);
+                if (logFn) {
+                    logFn(`[DWD-Warnings] ZIP geladen aus ${sourceUrl} (stale=${stale})`);
+                }
 
-    const out = [];
-    for (const ent of xmlEntries) {
-      try {
-        const xml = ent.getData().toString("utf8");
-        const obj = await parseStringPromise(xml, {
-          explicitArray: true,
-          mergeAttrs: true,
-          preserveChildrenOrder: false,
+                // ZIP entpacken → xmlFiles
+                const xmlFiles = await unzipCapFiles(buffer);
+                if (logFn) {
+                    logFn(`[DWD-Warnings] ZIP enthält ${xmlFiles.length} CAP/XML-Datei(en)`);
+                }
+
+                // Alerts aus XML parsen
+                const alerts = await parseCapFilesFn(xmlFiles, ds);
+                mergedAlerts.push(...alerts);
+            } catch (err) {
+                if (logFn) logFn(`[DWD-Warnings] FEHLER im Dataset ${ds}: ${err.message}`);
+            }
+        }
+
+        // --- Duplikate beseitigen (normal bei DWD!) ---
+        const seen = new Set();
+        mergedAlerts = mergedAlerts.filter((a) => {
+            const id = a.identifier || a.id || JSON.stringify(a).slice(0, 150);
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
         });
 
-        // <alert>…</alert> ODER Atom-Feed mit <entry><content><alert>
-        let capAlerts = [];
-        if (obj.alert || obj["cap:alert"]) {
-          capAlerts = [obj];
-        } else if (obj.feed || obj["atom:feed"]) {
-          const feed = obj.feed || obj["atom:feed"];
-          const entries = asArray(feed.entry || feed["atom:entry"]);
-          for (const entry of entries) {
-            const content = asArray(entry.content || entry["atom:content"])[0] || {};
-            const alert = content.alert || content["cap:alert"];
-            if (alert) capAlerts.push({ alert });
-          }
-        }
-
-        for (const cap of capAlerts) {
-          const norm = normalizeAlert(cap, ent.entryName);
-          if (norm) out.push(norm);
-        }
-      } catch (e) {
-        if (logFn) logFn(`[DWD-Warnings] Parse-Fehler in ${ent.entryName}: ${e.message}`);
-      }
+        return mergedAlerts;
     }
-    return out;
-  }
 
-  // ---- Filter: Warncells & Area-Names (Union/ODER) ----
-  function parseWarncellFilter(input) {
-    if (!input) return null;
-    const list = String(input)
-      .split(/[,\s;]+/g)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    return list.length ? new Set(list) : null;
-  }
+    // --- Helpers ---
+    const asArray = (x) => (x == null ? [] : Array.isArray(x) ? x : [x]);
+    const textOf = (node) =>
+        typeof node === "string"
+            ? node
+            : node && typeof node._ === "string"
+                ? node._
+                : null;
 
-  function parseAreaNames(input) {
-    if (!input) return null;
-    const list = String(input)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) => s.toLowerCase());
-    return list.length ? new Set(list) : null;
-  }
+    // CAP → Normalisierte Warnung
+    function normalizeAlert(cap, srcName) {
+        const a = cap.alert || cap["cap:alert"] || cap;
+        if (!a) return null;
 
-  function alertMatchesWarncell(alert, warncellSet) {
-    if (!warncellSet) return false;
-    for (const inf of asArray(alert.info)) {
-      for (const id of asArray(inf.warncellIds)) {
-        if (warncellSet.has(id)) return true;
-      }
-    }
-    return false;
-  }
+        const identifier = asArray(a.identifier).map(textOf)[0] || null;
+        const sender = asArray(a.sender).map(textOf)[0] || null;
+        const sent = asArray(a.sent).map(textOf)[0] || null;
+        const status = asArray(a.status).map(textOf)[0] || null;
+        const msgType = asArray(a.msgType).map(textOf)[0] || null;
+        const scope = asArray(a.scope).map(textOf)[0] || null;
 
-  function alertMatchesArea(alert, areaNameSet) {
-    if (!areaNameSet) return false;
-    for (const inf of asArray(alert.info)) {
-      const desc = (inf.areaDesc || "").toLowerCase();
-      if (!desc) continue;
-      for (const name of areaNameSet) {
-        if (desc.includes(name)) return true;
-      }
-    }
-    return false;
-  }
+        const info = asArray(a.info).map((i) => {
+            const lang = asArray(i.language).map(textOf)[0] || null;
+            const category = asArray(i.category).map(textOf)[0] || null;
+            const event = asArray(i.event).map(textOf)[0] || null;
+            const urgency = asArray(i.urgency).map(textOf)[0] || null;
+            const severity = asArray(i.severity).map(textOf)[0] || null;
+            const certainty = asArray(i.certainty).map(textOf)[0] || null;
+            const headline = asArray(i.headline).map(textOf)[0] || null;
+            const description = asArray(i.description).map(textOf)[0] || null;
+            const instruction = asArray(i.instruction).map(textOf)[0] || null;
+            const onset = asArray(i.onset).map(textOf)[0] || null;
+            const expires = asArray(i.expires).map(textOf)[0] || null;
+            const senderName = asArray(i.senderName).map(textOf)[0] || null;
 
-  function filterUnion(alerts, warncellSet, areaNameSet) {
-    if (!warncellSet && !areaNameSet) return alerts; // kein Filter aktiv
-    const out = [];
-    for (const a of alerts) {
-      if (alertMatchesWarncell(a, warncellSet) || alertMatchesArea(a, areaNameSet)) {
-        out.push(a);
-      }
-    }
-    return out;
-  }
+            // area / warncells sammeln
+            const areas = asArray(i.area).map((ar) => {
+                const areaDesc = asArray(ar.areaDesc).map(textOf)[0] || null;
+                const warncells = asArray(ar.geocode)
+                    .flatMap((gc) => asArray(gc.valueName).map(textOf).map((n, idx) => ({
+                        name: n,
+                        value: asArray(gc.value).map(textOf)[idx] || null,
+                    })))
+                    .filter((p) => (p.name || "").toUpperCase() === "WARNCELLID")
+                    .map((p) => p.value)
+                    .filter(Boolean);
 
-  // Nur aktive & zukünftige Meldungen
-  function filterActiveFuture(alerts, nowTs) {
-    const out = [];
-    for (const a of alerts) {
-      if (a.msgType && String(a.msgType).toLowerCase() === "cancel") continue;
-      let alive = false;
-      for (const inf of asArray(a.info)) {
-        const exp = inf.expires ? Date.parse(inf.expires) : NaN;
-        if (!Number.isFinite(exp) || exp >= nowTs) { alive = true; break; }
-      }
-      if (alive) out.push(a);
-    }
-    return out;
-  }
+                return { areaDesc, warncells };
+            });
 
-  // Optional: Name-Fallback
-  function applyNameFallback(alerts) {
-    for (const a of alerts) {
-      for (const inf of asArray(a.info)) {
-        if (!("name" in inf) || !inf.name) {
-          inf.name = inf.headline || inf.event || inf.category || inf.senderName || "Warnung";
-        }
-      }
-    }
-    return alerts;
-  }
+            const areaDescs = areas.map((x) => x.areaDesc).filter(Boolean);
+            const warncells = areas.flatMap((x) => x.warncells || []).filter(Boolean);
 
-  function WarningsNode(config) {
-    RED.nodes.createNode(this, config);
-    const node = this;
-
-    // Defaults aus HTML
-    node.dataset       = config.dataset || "COMMUNEUNION_CELLS_STAT";
-    node.warncells     = config.warncells || ""; // CSV/Whitespace
-
-    node.areaNameMatch   = !!config.areaNameMatch;            // Checkbox
-    node.extraAreaNames  = config.extraAreaNames || "";       // CSV
-    node.activeOnly      = !!config.activeOnly;               // Checkbox
-    node.staleAllow      = !!config.staleAllow;               // Checkbox
-    node.nameFallback    = !!config.nameFallback;             // (Kompatibilität)
-
-    node.fetchOnDeploy = !!config.fetchOnDeploy;
-    node.autoRefresh   = Number(config.autoRefresh || 0);
-    node.diag          = !!config.diag;
-
-    let refreshTimer = null;
-    const setStatus = (text, shape = "dot", color = "blue") =>
-      node.status({ fill: color, shape, text });
-
-    async function runFetch(msg) {
-      // ---- Effektive (benutzte) Werte bestimmen (msg > node > Default) ----
-      const usedDataset = String(msg?.dataset ?? node.dataset ?? "COMMUNEUNION_CELLS_STAT").trim();
-
-      const usedWarncellsStr = String(
-        msg?.warncells ?? msg?.warncellIds ?? node.warncells ?? ""
-      );
-      const usedWarncellSet = parseWarncellFilter(usedWarncellsStr);
-
-      const usedAreaNameMatch = Boolean(msg?.areaNameMatch ?? node.areaNameMatch);
-      const usedExtraAreaNamesStr = String(msg?.extraAreaNames ?? node.extraAreaNames ?? "");
-      const areaNameSet = usedAreaNameMatch ? parseAreaNames(usedExtraAreaNamesStr) : null;
-
-      const usedActiveOnly = Boolean(msg?.activeOnly ?? node.activeOnly);
-      const usedStaleAllow = Boolean(msg?.staleAllow ?? node.staleAllow);
-
-      if (node.diag) {
-        node.log(
-          `[DWD-Warnings] eff: dataset=${usedDataset}` +
-          ` | warncells=${Array.from(usedWarncellSet ?? []).join(",") || "-"}` +
-          ` | areaNameMatch=${usedAreaNameMatch}` +
-          ` | extraAreaNames=${Array.from(areaNameSet ?? []).join("|") || "-"}` +
-          ` | activeOnly=${usedActiveOnly}` +
-          ` | staleAllow=${usedStaleAllow}`
-        );
-      }
-
-      setStatus("lade…", "dot", "blue");
-
-      try {
-        // ---- Laden (mit Fallback) ----
-        const { buffer, sourceUrl, stale } = await fetchZipWithFallback(
-          usedDataset,
-          node.diag ? node.log.bind(node) : null
-        );
-
-        if (stale && !usedStaleAllow) {
-          throw new Error("Stale-Daten sind nicht erlaubt (LATEST 404 → Verzeichnis-Fallback)");
-        }
-
-        // ---- Parsen ----
-        let alerts = await extractAlertsFromZipBuffer(
-          buffer,
-          node.diag ? node.log.bind(node) : null
-        );
-
-        // ---- Filtern (Union + ActiveOnly + Name-Fallback) ----
-        const nowTs = Date.now();
-
-        // 1) Union: Warncell ODER (areaDesc-Match, wenn aktiviert & Namen vorhanden)
-        alerts = filterUnion(alerts, usedWarncellSet, areaNameSet);
-
-        // 2) Nur aktive/ zukünftige
-        if (usedActiveOnly) alerts = filterActiveFuture(alerts, nowTs);
-
-        // 3) Optional: Namens-Fallback (kosmetisch)
-        if (node.nameFallback) applyNameFallback(alerts);
-
-        if (node.diag) node.log(`[DWD-Warnings] Alerts nach Filtern: ${alerts.length}`);
-
-        // ---- Sortierung (neueste zuerst) ----
-        alerts.sort((a, b) => {
-          const ta = a.sent ? Date.parse(a.sent) || 0 : 0;
-          const tb = b.sent ? Date.parse(b.sent) || 0 : 0;
-          return tb - ta;
+            return {
+                lang,
+                category,
+                event,
+                urgency,
+                severity,
+                certainty,
+                headline,
+                description,
+                instruction,
+                onset,
+                expires,
+                senderName,
+                areaDesc: areaDescs.join("; "),
+                warncellIds: Array.from(new Set(warncells)),
+            };
         });
 
-        // ---- Ausgabe inkl. sauberem Meta-Block ----
-        const out = {
-          payload: alerts,
-          _meta: {
-            // Quelle
-            dataset: usedDataset,
-            sourceUrl,
+        const references = asArray(a.references).map(textOf)[0] || null;
 
-            // Laufzeitstatus
-            stale: !!stale,            // true = Directory-Fallback
-            total: alerts.length,
-
-            // Effektiv genutzte Filter/Flags
-            used: {
-              warncells: Array.from(usedWarncellSet ?? []),
-              areaNameMatch: usedAreaNameMatch,
-              extraAreaNames: Array.from(areaNameSet ?? []),
-              onlyActive: usedActiveOnly,
-              staleAllow: usedStaleAllow,
-            },
-
-            // Konfiguration (Node-UI) – zu Transparenzzwecken
-            configured: {
-              warncells: (node.warncells || "").split(/[,\s;]+/).map(s => s.trim()).filter(Boolean),
-              areaNameMatch: !!node.areaNameMatch,
-              extraAreaNames: (node.extraAreaNames || "").split(",").map(s => s.trim()).filter(Boolean),
-              onlyActive: !!node.activeOnly,
-              staleAllow: !!node.staleAllow,
-            },
-          },
+        return {
+            identifier,
+            sender,
+            sent,
+            status,
+            msgType,
+            scope,
+            info,
+            references,
+            source: srcName || null,
         };
-
-        setStatus(`${alerts.length} Meldungen`, "dot", stale ? "yellow" : "green");
-        node.send(out);
-      } catch (err) {
-        node.error(`DWD-Warnings Fehler: ${err && err.message ? err.message : String(err)}`, err);
-        setStatus("Fehler", "ring", "red");
-      }
     }
 
-    function scheduleRefresh() {
-      if (refreshTimer) {
-        clearInterval(refreshTimer);
-        refreshTimer = null;
-      }
-      const s = Number(node.autoRefresh || 0);
-      if (s > 0) refreshTimer = setInterval(() => runFetch({}), s * 1000);
+    // ZIP -> XML strings
+    async function unzipCapFiles(buffer) {
+        const zip = new AdmZip(buffer);
+        const entries = zip.getEntries();
+        const xmlEntries = entries.filter((e) =>
+            e.entryName.toLowerCase().match(/\.(xml|cap)$/)
+        );
+
+        const xmlFiles = [];
+        for (const ent of xmlEntries) {
+            xmlFiles.push({
+                name: ent.entryName,
+                xml: ent.getData().toString("utf8"),
+            });
+        }
+        return xmlFiles;
     }
 
-    node.on("input", runFetch);
-    node.on("close", () => {
-      if (refreshTimer) clearInterval(refreshTimer);
-      setStatus("");
-    });
+    // Parse XML files -> normalized alerts (one per CAP alert)
+    async function parseCapFiles(xmlFiles, datasetKey, logFn) {
+        const out = [];
+        for (const f of xmlFiles) {
+            try {
+                const obj = await parseStringPromise(f.xml, {
+                    explicitArray: true,
+                    mergeAttrs: true,
+                    preserveChildrenOrder: false,
+                });
 
-    scheduleRefresh();
-    if (node.fetchOnDeploy) runFetch({}).catch(() => {});
-    else setStatus("bereit");
-  }
+                // <alert>…</alert> ODER Atom-Feed mit <entry><content><alert>
+                let capAlerts = [];
+                if (obj.alert || obj["cap:alert"]) {
+                    capAlerts = [obj];
+                } else if (obj.feed || obj["atom:feed"]) {
+                    const feed = obj.feed || obj["atom:feed"];
+                    const entries = asArray(feed.entry || feed["atom:entry"]);
+                    for (const entry of entries) {
+                        const content = asArray(entry.content || entry["atom:content"])[0] || {};
+                        const alert = content.alert || content["cap:alert"];
+                        if (alert) capAlerts.push({ alert });
+                    }
+                }
 
-  RED.nodes.registerType("dwd-weatherwarnings", WarningsNode);
+                for (const cap of capAlerts) {
+                    const norm = normalizeAlert(cap, `${datasetKey}:${f.name}`);
+                    if (norm) out.push(norm);
+                }
+            } catch (e) {
+                if (logFn) logFn(`[DWD-Warnings] Parse-Fehler in ${f.name}: ${e.message}`);
+            }
+        }
+        return out;
+    }
+
+    // We only support ONE warncell id. If multiple are provided, we take the first.
+    function parseSingleWarncell(input) {
+        if (!input) return null;
+        const first = String(input)
+            .split(/[,\s;]+/g)
+            .map((s) => s.trim())
+            .filter(Boolean)[0];
+        return first || null;
+    }
+
+    function parseAreaNames(input) {
+        if (!input) return null;
+        const list = String(input)
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((s) => s.toLowerCase());
+        return list.length ? new Set(list) : null;
+    }
+
+    function alertMatchesWarncell(alert, warncellId) {
+        if (!warncellId) return false;
+        for (const inf of asArray(alert.info)) {
+            for (const id of asArray(inf.warncellIds)) {
+                if (id === warncellId) return true;
+            }
+        }
+        return false;
+    }
+
+    function alertMatchesAreaName(alert, areaNameSet) {
+        if (!areaNameSet) return false;
+        for (const inf of asArray(alert.info)) {
+            const desc = (inf.areaDesc || "").toLowerCase();
+            if (!desc) continue;
+            for (const name of areaNameSet) {
+                if (desc.includes(name)) return true;
+            }
+        }
+        return false;
+    }
+
+    function isAlertActive(alert, now) {
+        const n = now || Date.now();
+        for (const inf of asArray(alert.info)) {
+            const expires = inf.expires ? Date.parse(inf.expires) : null;
+            if (expires == null) return true;
+            if (expires >= n) return true;
+        }
+        return false;
+    }
+
+    // ---- Node-RED Runtime ----
+    function WarningsNode(config) {
+        RED.nodes.createNode(this, config);
+        const node = this;
+
+        node.name = config.name;
+        node.warncells = config.warncells || "";
+        node.areaNameMatch = !!config.areaNameMatch;
+        node.extraAreaNames = config.extraAreaNames || "";
+        node.activeOnly = config.activeOnly !== false;
+        node.staleAllow = config.staleAllow !== false;
+        node.autoRefresh = Number(config.autoRefresh || 0);
+        node.fetchOnDeploy = config.fetchOnDeploy !== false;
+        node.diag = !!config.diag;
+
+        let refreshTimer = null;
+        let lastGoodPayload = null;
+
+        const logFn = node.diag ? (m) => node.log(m) : null;
+
+        function setStatus(text, shape = "dot", color = "green") {
+            if (!text) return node.status({});
+            node.status({ fill: color, shape, text });
+        }
+
+        async function runFetch(msg, send, done) {
+            send = send || node.send.bind(node);
+            done = done || ((err) => err && node.error(err, msg));
+
+            try {
+                setStatus("lade…", "ring", "blue");
+
+                // Filters aus msg überschreiben -> sonst node-config
+                const usedWarncellId = parseSingleWarncell(
+                    msg.warncell != null
+                        ? msg.warncell
+                        : (msg.warncells != null ? msg.warncells : node.warncells)
+                );
+                const usedAreaNameMatch =
+                    msg.areaNameMatch != null ? !!msg.areaNameMatch : node.areaNameMatch;
+                const areaNameSet = parseAreaNames(
+                    msg.extraAreaNames != null ? msg.extraAreaNames : node.extraAreaNames
+                );
+
+                const usedActiveOnly =
+                    msg.activeOnly != null ? !!msg.activeOnly : node.activeOnly;
+                const usedStaleAllow =
+                    msg.staleAllow != null ? !!msg.staleAllow : node.staleAllow;
+
+                // --- immer beide Datasets holen ---
+                let alerts = await fetchAllDatasets(logFn, (xmlFiles, ds) =>
+                    parseCapFiles(xmlFiles, ds, logFn)
+                );
+
+                // Filter anwenden (Warncell ODER areaDesc, je nach Flags)
+                if (usedWarncellId || (usedAreaNameMatch && areaNameSet)) {
+                    alerts = alerts.filter((a) => {
+                        const byWarncell = usedWarncellId
+                            ? alertMatchesWarncell(a, usedWarncellId)
+                            : false;
+                        const byAreaName =
+                            usedAreaNameMatch && areaNameSet
+                                ? alertMatchesAreaName(a, areaNameSet)
+                                : false;
+                        return byWarncell || byAreaName;
+                    });
+                }
+
+                // activeOnly
+                if (usedActiveOnly) {
+                    const now = Date.now();
+                    alerts = alerts.filter((a) => isAlertActive(a, now));
+                }
+
+                // >>> NEU: Warncell-ID, nach der gefiltert wurde, pro Alert mitsenden
+                if (usedWarncellId) {
+                    alerts = alerts.map((a) => ({
+                        ...a,
+                        filterWarncellId: usedWarncellId,
+                    }));
+                }
+
+                if (logFn) logFn(`[DWD-Warnings] Alerts nach Filtern: ${alerts.length}`);
+
+                // Fallback auf last good, falls leer & staleAllow
+                if (!alerts.length && usedStaleAllow && lastGoodPayload) {
+                    if (logFn) logFn(`[DWD-Warnings] Keine Alerts → verwende stale fallback`);
+                    alerts = lastGoodPayload.payload || [];
+                    lastGoodPayload._meta.stale = true;
+                }
+
+                const out = {
+                    payload: alerts,
+                    _meta: {
+                        source: "DWD WARN_L CAP ZIP",
+                        fetchedAt: new Date().toISOString(),
+
+                        // Laufzeitstatus
+                        stale: false,
+                        total: alerts.length,
+
+                        // Effektiv genutzte Filter/Flags
+                        used: {
+                            warncellId: usedWarncellId,
+                            areaNameMatch: usedAreaNameMatch,
+                            extraAreaNames: Array.from(areaNameSet ?? []),
+                            onlyActive: usedActiveOnly,
+                            staleAllow: usedStaleAllow,
+                            datasets: ["COMMUNEUNION_CELLS_STAT", "DISTRICT_CELLS_STAT"],
+                        },
+
+                        // Konfiguration (Node-UI) – zu Transparenzzwecken
+                        configured: {
+                            warncellId: parseSingleWarncell(node.warncells),
+                            areaNameMatch: !!node.areaNameMatch,
+                            extraAreaNames: (node.extraAreaNames || "")
+                                .split(",")
+                                .map((s) => s.trim())
+                                .filter(Boolean),
+                            onlyActive: !!node.activeOnly,
+                            staleAllow: !!node.staleAllow,
+                        },
+                    },
+                };
+
+                lastGoodPayload = JSON.parse(JSON.stringify(out));
+
+                setStatus(`${alerts.length} Meldungen`, "dot", "green");
+                send(out);
+                done();
+            } catch (err) {
+                node.error(
+                    `DWD-Warnings Fehler: ${err && err.message ? err.message : String(err)}`,
+                    err
+                );
+                setStatus("Fehler", "ring", "red");
+                done(err);
+            }
+        }
+
+        function scheduleRefresh() {
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+            const s = Number(node.autoRefresh || 0);
+            if (s > 0) refreshTimer = setInterval(() => runFetch({}), s * 1000);
+        }
+
+        node.on("input", runFetch);
+        node.on("close", () => {
+            if (refreshTimer) clearInterval(refreshTimer);
+            setStatus("");
+        });
+
+        scheduleRefresh();
+        if (node.fetchOnDeploy) runFetch({}).catch(() => {});
+        else setStatus("bereit");
+    }
+
+    RED.nodes.registerType("dwd-weatherwarnings", WarningsNode);
 };

@@ -1,163 +1,202 @@
 # node-red-contrib-dwd-weatherwarnings
 
-A Node-RED node that retrieves **official weather warnings** from the  
-**Deutscher Wetterdienst (DWD)** WARN_L open data API.
-
-It downloads the latest **XML** weather warning feeds for Germany,  
-parses and extracts structured warning data, and outputs a JSON array with  
-key warning parameters such as warning type, severity, affected areas, start/end times, and descriptions.
+A Node-RED node providing access to the **official DWD Weather Warnings** (Deutscher Wetterdienst · WARN_L).  
+The node downloads the latest XML feeds, parses all relevant warning information and exposes a structured JSON
+payload that is easy to consume in dashboards, notifications and automations.
 
 ---
 
-## ⚠️ Features
+## ✨ Features
 
-- Uses official **DWD WARN_L** weather warning data (latest updates)
-- Supports filtering by **WarnCell ID(s)** or by **area description**
-- Handles multiple simultaneous warnings and overlapping areas
-- Supports **auto-refresh** (periodic updates without inject nodes)
-- Optionally triggers a fetch **on deploy**
-- Allows **stale fallback** (keeps last valid data if DWD feed fails)
-- Provides detailed warning metadata including event type, severity, certainty, urgency, and instructions
-- Outputs warnings with precise **start and end timestamps**
-- Supports outputting raw XML for advanced processing
-- Includes **human-readable text fields** for warnings and instructions
-- Compatible with Node-RED flows for alerting, dashboards, or logging
+- Uses official **DWD WARN_L** weather warning data
+- Supports multiple DWD datasets (e.g. commune union, district cells)
+- Filtering by **warncell ID** (single region/cell)
+- Optionally returns **all active warnings for Germany**
+- Optional **stale mode** to keep last valid data on errors
+- Auto-refresh support (periodic updates)
+- Fetch-on-deploy option for initial data
+- Fully **i18n-enabled** (English / German, including help text and status messages)
+- Designed to work together with other DWD nodes (pollen, forecast, rain radar)
 
 ---
 
-## 🧩 Installation
+## 📦 Install
 
-### Using the Node-RED Palette Manager
-
-1. Open Node-RED in your browser  
-2. Go to **Menu → Manage palette → Install**
-3. Search for **`node-red-contrib-dwd-weatherwarnings`**
-4. Click **Install**
-
-### Using command line (for Docker or local installations)
-
-```bash
-cd /data
-npm install --no-fund --no-audit GerdRuetten/node-red-contrib-dwd-weatherwarnings
-```
-
-or (if published on npm):
+From your Node-RED user directory (typically `~/.node-red`):
 
 ```bash
 npm install node-red-contrib-dwd-weatherwarnings
 ```
 
-If Node-RED runs inside Docker, execute from the container shell:
+Or via the Node-RED Palette Manager:
 
-```bash
-docker exec -u node-red -it node-red bash -lc 'cd /data && npm install --no-fund --no-audit GerdRuetten/node-red-contrib-dwd-weatherwarnings#master'
-```
-
-Then restart Node-RED.
-
----
-
-## ⚙️ Configuration
-
-| Setting | Type | Description |
-|----------|------|-------------|
-| **WarnCell ID(s)** | string | Comma-separated list of DWD WarnCell IDs to filter warnings (e.g. `0591,0592`) |
-| **Area Description Filter** | string | Optional text filter for area descriptions (case-insensitive substring match) |
-| **Source URL** | string | Default: <br>`https://opendata.dwd.de/weather/warnings/warnings_dwd_de.xml` |
-| **Run on deploy** | checkbox | Immediately fetch data after deploy |
-| **Auto refresh (seconds)** | number | Optional interval to automatically update warnings |
-| **Allow stale fallback** | checkbox | Keep last valid data if DWD feed fails |
-| **Output raw XML** | checkbox | Outputs the raw XML feed as a string in addition to parsed JSON |
-| **Include instructions** | checkbox | Include detailed warning instructions text |
-| **Only active warnings** | checkbox | Skip warnings that have expired (end time in the past) |
+1. Open the Node-RED editor
+2. Menu → **Manage palette**
+3. Tab **Install**
+4. Search for **`node-red-contrib-dwd-weatherwarnings`**
+5. Click **Install**
 
 ---
 
-## 🧾 Example Output
+## 🔧 Configuration
+
+The main configuration options:
+
+### Name
+Optional display name for the node.  
+If left empty, a default label is used.
+
+### Warncell ID
+Optional cell identifier to restrict warnings to a single region.  
+If left empty, the node can be configured to return all warnings for the selected dataset.
+
+### Only active warnings
+When enabled, the node filters out expired warnings and only returns those that are currently active.
+
+### Allow stale data
+When enabled, the node can return the last successfully fetched warning set if the latest fetch fails
+(for example due to network issues or a temporary DWD outage). A metadata flag indicates that the data is stale.
+
+### Fetch on deploy
+If enabled, the node performs an initial fetch shortly after the flow is deployed.
+
+### Auto-refresh (sec)
+Interval in seconds for automatic refresh:
+
+- `0` → disabled (warnings are only updated on incoming messages)
+- `> 0` → warnings are refreshed periodically
+
+### Diagnostics
+When enabled, the node writes additional diagnostic messages into the Node-RED log, which helps with debugging and understanding the behaviour.
+
+---
+
+## 🔌 Inputs
+
+Any incoming message triggers a refresh of the warning data based on the current configuration, unless the node is already updating due to auto-refresh.
+
+The contents of the input message are not evaluated; the input acts as a simple trigger.
+
+---
+
+## 📤 Outputs
+
+The node outputs a message where `msg.payload` contains warning information.  
+A typical structure can look like:
 
 ```json
 {
-  "payload": [
+  "dataset": "COMMUNEUNION_CELLS_STAT",
+  "warncellId": "105340000",
+  "alerts": [
     {
-      "id": "DEBWZ-20240601-001",
-      "event": "Severe Thunderstorm",
-      "severity": "Severe",
-      "certainty": "Likely",
-      "urgency": "Immediate",
-      "areas": ["Baden-Württemberg", "Stuttgart"],
-      "warnCellIds": ["0591", "0592"],
-      "start": 1719993600000,
-      "end": 1720000800000,
-      "headline": "Severe Thunderstorm Warning",
-      "description": "Heavy thunderstorms with hail and strong winds expected.",
-      "instruction": "Seek shelter indoors and avoid open areas.",
-      "rawXml": "<warning>...</warning>"
+      "identifier": "2.49.0.0.276.0.DWD.PVW.18594476",
+      "onset": "2025-10-28T10:00:00Z",
+      "expires": "2025-10-28T18:00:00Z",
+      "severity": "moderate",
+      "event": "Wind",
+      "headline": "Wind warning",
+      "description": "There is a risk of gusty winds.",
+      "instruction": "Secure loose objects outdoors.",
+      "area": {
+        "name": "Rhein-Erft-Kreis",
+        "code": "105340000"
+      }
     }
   ],
   "_meta": {
-    "url": "https://opendata.dwd.de/weather/warnings/warnings_dwd_de.xml",
+    "url": "https://opendata.dwd.de/weather/alerts/...xml",
     "count": 1,
-    "stale": false
+    "stale": false,
+    "fetchedAt": "2025-10-28T09:45:00Z"
   }
 }
 ```
 
----
+The exact output format may differ slightly depending on the implementation,
+but always follows the idea of a top-level object with:
 
-## 💡 Tips
-
-- Use the [official DWD WarnCell list](https://opendata.dwd.de/weather/warnings/warncell_list.csv) to find WarnCell IDs.
-- The node caches the last valid warning feed internally to prevent empty data during outages.
-- For automatic updates, set *auto refresh* (e.g. `300` s = 5 min).
-- Combine this node with dashboard, notification, or database nodes for live alerting.
-- Use the area description filter to focus on specific regions or cities.
-- Enable raw XML output for custom XML parsing or archival.
+- the selected dataset and (optional) warncell ID,
+- an `alerts` array with warning objects,
+- and a `_meta` section with technical details.
 
 ---
 
-## 🧠 Data Source
+## 🔎 Status text
 
-All warning data comes from  
-**Deutscher Wetterdienst (DWD)**  
-via the [Open Data Server](https://opendata.dwd.de/weather/warnings/).
+The node uses its status indicator in the Node-RED editor to reflect its current state:
 
-This node uses **WARN_L (Warning Information – Latest)** datasets.  
-WARN_L provides up-to-date official weather warnings for all German regions.
+- **loading…** – currently fetching warnings
+- **ready** – idle, waiting for triggers
+- **ok** – warnings successfully updated (may display number of alerts)
+- **error** – an error occurred while fetching or parsing data
+- **stale** – serving cached warnings due to a recent fetch error
+
+All status texts are fully localised.
+
+---
+
+## 🌍 Internationalisation (i18n)
+
+All editor labels, help content and runtime status messages are localised via the Node-RED i18n mechanism.
+
+Translator files:
+
+- English:
+    - `nodes/locales/en-US/dwd-weatherwarnings.json`
+    - `nodes/locales/en-US/dwd-weatherwarnings.html`
+- German:
+    - `nodes/locales/de/dwd-weatherwarnings.json`
+    - `nodes/locales/de/dwd-weatherwarnings.html`
+
+The Node-RED editor language (or browser language, depending on configuration) controls which texts are displayed.
+
+---
+
+## 🧪 Example flow
+
+A basic example flow is included in:
+
+```text
+examples/weatherwarnings-basic.json
+```
+
+It demonstrates:
+
+- manual trigger via an **Inject** node,
+- configuration of the dataset and warncell ID,
+- and inspection of the resulting warnings via a **Debug** node.
+
+Import steps:
+
+1. In Node-RED, open the menu → **Import**
+2. Choose **Clipboard**
+3. Paste the contents of `weatherwarnings-basic.json`
+4. Click **Import**
+
+---
+
+## 🗺️ Roadmap
+
+Planned additions:
+
+- Additional filtering options (e.g. by severity)
+- Dashboard-ready example flows
+- Combined views with forecast and rain radar
+- Optional metrics/telemetry for monitoring
 
 ---
 
 ## ⚖️ License
 
-MIT © 2025 [Gerd Rütten](https://github.com/GerdRuetten)
+MIT © 2025 Gerd Rütten
 
 ---
 
 ## 🧰 Changelog
-See [CHANGELOG.md](./CHANGELOG.md) for details.
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for the full history of changes.
 
 ---
 
-## 🧪 Example Flow
-
-```json
-[
-  {
-    "id": "dwd_warnings",
-    "type": "dwd-warnings",
-    "name": "DWD Weather Warnings",
-    "warnCellIds": "0591,0592",
-    "areaDescFilter": "",
-    "runOnDeploy": true,
-    "autoRefreshSeconds": 300,
-    "allowStale": true,
-    "outputRawXml": false,
-    "includeInstructions": true,
-    "onlyActive": true
-  }
-]
-```
-
----
-
-> ⚠️ **node-red-contrib-dwd-weatherwarnings** — bringing official DWD weather warnings directly into your Node-RED flows.
-</file>
+> ⚠️ **node-red-contrib-dwd-weatherwarnings** — bringing official DWD Weather Warnings directly into your Node-RED flows.

@@ -9,40 +9,18 @@
     </div>
 
     <div class="form-row">
-        <label for="node-input-dataset">
-            <i class="fa fa-database"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.dataset">Dataset</span>
-        </label>
-        <select id="node-input-dataset">
-            <option value="COMMUNEUNION_CELLS_STAT"
-                    data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.datasetCommuneunion">
-                COMMUNEUNION_CELLS_STAT (feiner, empfohlen)
-            </option>
-            <option value="DISTRICT_CELLS_STAT"
-                    data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.datasetDistrict">
-                DISTRICT_CELLS_STAT (gröber)
-            </option>
-        </select>
-        <div class="form-tips"
-             data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.datasetTip">
-            Auflösung wählen: COMMUNEUNION (Gemeindeverband, fein) oder DISTRICT (Landkreis, gröber).
-        </div>
-    </div>
-
-    <div class="form-row">
         <label for="node-input-warncells">
             <i class="fa fa-filter"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.warncells">Warncell-ID(s)</span>
+            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.warncells">Warncell-ID</span>
         </label>
         <input type="text"
                id="node-input-warncells"
                data-i18n="[placeholder]node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.warncellsPlaceholder"
-               placeholder="z. B. 105315000, 105111000">
+               placeholder="z. B. 105315000">
         <div class="form-tips">
-      <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.warncellsTip">
-        Filter auf spezifische WARNCELLID. Mehrere IDs mit Komma oder Leerzeichen trennen.
-        Leer lassen = alle Meldungen.
-      </span>
+            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.warncellsTip">
+                Filter auf eine spezifische WARNCELLID. Leer lassen = alle Meldungen.
+            </span>
             <a href="https://www.dwd.de/DE/leistungen/opendata/help/warnungen/cap_warncellids_csv.html"
                target="_blank"
                data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.warncellsLinkText">
@@ -61,8 +39,8 @@
         <input type="checkbox" id="node-input-areaNameMatch" style="width:auto;">
         <span style="margin-left:6px;"
               data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.areaNameMatchLabel">
-      Gebiets-Namensabgleich erlauben (areaDesc)
-    </span>
+            Gebiets-Namensabgleich erlauben (areaDesc)
+        </span>
         <div class="form-tips"
              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.areaNameMatchTip">
             Wenn aktiv und unten Namen angegeben sind, werden Warnungen zusätzlich behalten, wenn
@@ -74,13 +52,13 @@
         <label for="node-input-extraAreaNames">
             <i class="fa fa-list"></i>
             <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.extraAreaNames">
-        Zusätzliche Gebietsnamen
-      </span>
+                Zusätzliche Gebietsnamen
+            </span>
         </label>
         <input type="text"
                id="node-input-extraAreaNames"
                data-i18n="[placeholder]node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.extraAreaNamesPlaceholder"
-               placeholder="z. B. Köln, Düsseldorf, Deutz">
+               placeholder="z. B. Köln, Düsseldorf, Bedburg">
         <div class="form-tips"
              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.extraAreaNamesTip">
             Kommagetrennt. Beim Filtern wird Warncell-Match ODER Gebietsname in areaDesc verwendet.
@@ -93,14 +71,14 @@
         <label for="node-input-activeOnly">
             <i class="fa fa-clock-o"></i>
             <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.activeOnly">
-        Nur aktive &amp; zukünftige
-      </span>
+                Nur aktive &amp; zukünftige
+            </span>
         </label>
         <input type="checkbox" id="node-input-activeOnly" style="width:auto;">
         <span style="margin-left:6px;"
               data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.activeOnlyLabel">
-      Nur aktive &amp; zukünftige Warnungen
-    </span>
+            Nur aktive &amp; zukünftige Warnungen
+        </span>
         <div class="form-tips"
              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.activeOnlyTip">
             Wenn aktiv, enthält die Ausgabe nur Meldungen, die aktuell laufen oder in der Zukunft liegen.
@@ -111,14 +89,14 @@
         <label for="node-input-staleAllow">
             <i class="fa fa-hourglass-half"></i>
             <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.staleAllow">
-        Stale erlauben
-      </span>
+                Stale erlauben
+            </span>
         </label>
         <input type="checkbox" id="node-input-staleAllow" style="width:auto;">
         <span style="margin-left:6px;"
               data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.staleAllowLabel">
-      Bei XML-/HTTP-Fehlern letzten erfolgreichen Stand liefern
-    </span>
+            Bei XML-/HTTP-Fehlern letzten erfolgreichen Stand liefern
+        </span>
         <div class="form-tips"
              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.staleAllowTip">
             Erlaube Fallback auf die neueste Datei aus dem Verzeichnis, wenn <code>_LATEST_</code> 404 liefert.
@@ -130,8 +108,8 @@
         <label for="node-input-autoRefresh">
             <i class="fa fa-refresh"></i>
             <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.autoRefresh">
-        Auto-Refresh (Sek.)
-      </span>
+                Auto-Refresh (Sek.)
+            </span>
         </label>
         <input type="number"
                id="node-input-autoRefresh"
@@ -148,28 +126,28 @@
         <label for="node-input-fetchOnDeploy">
             <i class="fa fa-bolt"></i>
             <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.fetchOnDeploy">
-        Beim Deploy abrufen
-      </span>
+                Beim Deploy abrufen
+            </span>
         </label>
         <input type="checkbox" id="node-input-fetchOnDeploy" style="width:auto;">
         <span style="margin-left:6px;"
               data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.fetchOnDeployTip">
-      Direkten Datenabruf bei Deploy aktivieren
-    </span>
+            Direkten Datenabruf bei Deploy aktivieren
+        </span>
     </div>
 
     <div class="form-row">
         <label for="node-input-diag">
             <i class="fa fa-bug"></i>
             <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.diag">
-        Diagnose-Logs
-      </span>
+                Diagnose-Logs
+            </span>
         </label>
         <input type="checkbox" id="node-input-diag" style="width:auto;">
         <span style="margin-left:6px;"
               data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.diagTip">
-      Zusätzliche Protokollierung im Node-RED-Log aktivieren.
-    </span>
+            Zusätzliche Protokollierung im Node-RED-Log aktivieren.
+        </span>
     </div>
 </script>
 
@@ -187,9 +165,8 @@
             },
 
             defaults: {
-                name:         { value: "" },
-                dataset:      { value: "COMMUNEUNION_CELLS_STAT" },
-                warncells:    { value: "" },
+                name:           { value: "" },
+                warncells:      { value: "" },
 
                 areaNameMatch:  { value: false },
                 extraAreaNames: { value: "" },
@@ -200,9 +177,9 @@
                 // Legacy-Feld beibehalten (Kompatibilität)
                 nameFallback: { value: true },
 
-                autoRefresh:  { value: 0 },
-                fetchOnDeploy:{ value: true },
-                diag:         { value: false }
+                autoRefresh:   { value: 0 },
+                fetchOnDeploy: { value: true },
+                diag:          { value: false }
             },
 
             inputs: 1,

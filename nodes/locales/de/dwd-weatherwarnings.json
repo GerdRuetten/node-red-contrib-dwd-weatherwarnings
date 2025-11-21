@@ -5,7 +5,7 @@
     "defaultName": "DWD-Wetterwarnungen",
     "name": "Name",
     "dataset": "Dataset",
-    "warncells": "Warncell-ID(s)",
+    "warncells": "Warncell-ID",
     "areaNameMatch": "Name-Fallback",
     "extraAreaNames": "Zusätzliche Gebietsnamen",
     "activeOnly": "Nur aktive & zukünftige",
@@ -20,8 +20,8 @@
     "datasetCommuneunion": "COMMUNEUNION_CELLS_STAT (feiner, empfohlen)",
     "datasetDistrict": "DISTRICT_CELLS_STAT (gröber)",
 
-    "warncellsPlaceholder": "z. B. 105315000, 105111000",
-    "warncellsTip": "Filter auf spezifische WARNCELLID. Mehrere IDs mit Komma oder Leerzeichen trennen. Leer lassen = alle Meldungen.",
+    "warncellsPlaceholder": "z. B. 105315000",
+    "warncellsTip": "Filter auf spezifische WARNCELLID.",
     "warncellsLinkText": "Liste der DWD Warncell-IDs anzeigen",
 
     "areaNameMatchLabel": "Gebiets-Namensabgleich erlauben (areaDesc)",
