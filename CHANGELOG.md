@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 
 - (none)
 
+## [1.3.2] – 2025-11-23
+
+### Fixed
+- Warncell filtering now returns **all matching alerts** for the configured Warncell-ID (multiple warnings like Frost + Glätte are no longer dropped).
+- Filtering no longer stops at the first match; results are collected across all CAP entries.
+
+### Added
+- Each output warning now includes a `filterWarncellId` field so it’s always clear **which Warncell-ID triggered the result**.
+- Runtime output includes mapped DWD **type/level codes** and a readable summary, ready for scorecards / dashboards.
+
+### Changed
+- Internal matching logic simplified and hardened to avoid dataset-specific edge cases.
+- 
 ## [1.3.1] – 2025-11-21
 
 ### Changed

@@ -155,14 +155,30 @@ module.exports = function (RED) {
             const expires = asArray(i.expires).map(textOf)[0] || null;
             const senderName = asArray(i.senderName).map(textOf)[0] || null;
 
-            // area / warncells sammeln
+            // --- eventCode (z.B. DWD Typnummern) ---
+            const eventCodes = asArray(i.eventCode).map((ec) => ({
+                valueName: asArray(ec.valueName).map(textOf)[0] || null,
+                value: asArray(ec.value).map(textOf)[0] || null,
+            })).filter(x => x.valueName || x.value);
+
+            // --- parameter (für "minimum temperature" etc.) ---
+            const parameters = asArray(i.parameter).map((p) => ({
+                valueName: asArray(p.valueName).map(textOf)[0] || null,
+                value: asArray(p.value).map(textOf)[0] || null,
+                unit: asArray(p.unit).map(textOf)[0] || null,
+            })).filter(x => x.valueName || x.value);
+
+            // --- areas / warncells sammeln (WICHTIG für Region-Name) ---
             const areas = asArray(i.area).map((ar) => {
                 const areaDesc = asArray(ar.areaDesc).map(textOf)[0] || null;
+
                 const warncells = asArray(ar.geocode)
-                    .flatMap((gc) => asArray(gc.valueName).map(textOf).map((n, idx) => ({
-                        name: n,
-                        value: asArray(gc.value).map(textOf)[idx] || null,
-                    })))
+                    .flatMap((gc) =>
+                        asArray(gc.valueName).map(textOf).map((n, idx) => ({
+                            name: n,
+                            value: asArray(gc.value).map(textOf)[idx] || null,
+                        }))
+                    )
                     .filter((p) => (p.name || "").toUpperCase() === "WARNCELLID")
                     .map((p) => p.value)
                     .filter(Boolean);
@@ -188,6 +204,9 @@ module.exports = function (RED) {
                 senderName,
                 areaDesc: areaDescs.join("; "),
                 warncellIds: Array.from(new Set(warncells)),
+                areas,          // <<< neu
+                eventCodes,     // <<< neu
+                parameters,     // <<< neu
             };
         });
 
@@ -312,6 +331,102 @@ module.exports = function (RED) {
         return false;
     }
 
+    function severityToLevel(sev) {
+        switch ((sev || "").toLowerCase()) {
+            case "minor": return 1;
+            case "moderate": return 2;
+            case "severe": return 3;
+            case "extreme": return 4;
+            default: return null;
+        }
+    }
+
+    function levelToColor(level) {
+        switch (level) {
+            case 1: return "#ffeb3b"; // gelb
+            case 2: return "#ff9800"; // orange
+            case 3: return "#f44336"; // rot
+            case 4: return "#9c27b0"; // violett
+            default: return null;
+        }
+    }
+
+    function pickInfo(alert, preferLangPrefix = "de") {
+        const infos = asArray(alert.info);
+        if (!infos.length) return null;
+        // bevorzugt de-DE / en-GB ...
+        const hit = infos.find(i => (i.lang || "").toLowerCase().startsWith(preferLangPrefix));
+        return hit || infos[0];
+    }
+
+    function buildPrettyOutput(alerts, warncellId, preferLangPrefix = "de") {
+        const list = asArray(alerts);
+
+        // Region-Name aus passender Area ziehen
+        let regionName = null;
+        for (const a of list) {
+            const inf = pickInfo(a, preferLangPrefix);
+            if (!inf) continue;
+            const area = asArray(inf.areas).find(ar => asArray(ar.warncells).includes(warncellId));
+            if (area && area.areaDesc) { regionName = area.areaDesc; break; }
+        }
+
+        // letzter Zeitstempel
+        const lastSent = list
+            .map(a => Date.parse(a.sent))
+            .filter(x => !Number.isNaN(x))
+            .sort((a,b)=>b-a)[0];
+        const lastUpdateIso = lastSent ? new Date(lastSent).toISOString() : null;
+
+        const warnings = list.map((a, idx) => {
+            const inf = pickInfo(a, preferLangPrefix) || {};
+            const level = severityToLevel(inf.severity);
+            const color = levelToColor(level);
+
+            // DWD Typcode heuristisch aus eventCodes holen
+            // häufig ist valueName "II" oder "EVENTTYPE"
+            const typeCode =
+                asArray(inf.eventCodes).find(ec => (ec.valueName || "").toUpperCase() === "II")?.value
+                || asArray(inf.eventCodes)[0]?.value
+                || null;
+
+            // Parameters hübsch mappen
+            const params = {};
+            for (const p of asArray(inf.parameters)) {
+                if (!p.valueName) continue;
+                const key = p.valueName;
+                params[key] = p.unit ? `${p.value} [${p.unit}]` : p.value;
+            }
+
+            return {
+                warningNumber: idx + 1,
+                name: inf.event || null,
+                type: typeCode,
+                level,
+                headline: inf.headline || null,
+                description: inf.description || null,
+                instruction: inf.instruction || null,
+                start: inf.onset || null,
+                end: inf.expires || null,
+                parameters: params,
+                color,
+                identifier: a.identifier || null,
+                dataset: (a.source || "").split(":")[0] || null,
+                filterWarncellId: warncellId,
+            };
+        });
+
+        return {
+            region: {
+                name: regionName || null,
+                id: warncellId || null,
+                lastUpdate: lastUpdateIso,
+                warningCount: warnings.length,
+            },
+            warnings,
+        };
+    }
+
     // ---- Node-RED Runtime ----
     function WarningsNode(config) {
         RED.nodes.createNode(this, config);
@@ -403,8 +518,12 @@ module.exports = function (RED) {
                     lastGoodPayload._meta.stale = true;
                 }
 
+                const preferLangPrefix = (msg.lang || "de").toLowerCase().startsWith("en") ? "en" : "de";
+                const pretty = buildPrettyOutput(alerts, usedWarncellId, preferLangPrefix);
+
                 const out = {
-                    payload: alerts,
+                    payload: pretty,
+                    alerts: alerts,           // <<< neu
                     _meta: {
                         source: "DWD WARN_L CAP ZIP",
                         fetchedAt: new Date().toISOString(),
