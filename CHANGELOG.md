@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 - (none)
 
+### [1.3.3] – 2025-11-26
+
+### Changed
+- Updated the editor i18n system to match the consolidated pattern from the `i18n-test` reference node.
+    - All `data-i18n` attributes now use relative keys (`label.*`, `ui.*`) according to official Node-RED guidelines.
+    - Node labels in the editor now resolve through `this._(...)` instead of static fully-qualified namespaces.
+- Help texts remain in separate localized HTML files for correct language switching.
+
+### Fixed
+- All editor strings now properly switch languages based on the editor’s active locale.
+- Removed outdated fully-qualified i18n namespaces that previously caused inconsistent language fallback behavior.
+
 ## [1.3.2] – 2025-11-23
 
 ### Fixed

@@ -447,6 +447,19 @@ module.exports = function (RED) {
 
         const logFn = node.diag ? (m) => node.log(m) : null;
 
+        // i18n helper (runtime namespace) with safe fallback
+        const tr = (nsKey, params) => {
+            const res = RED._(nsKey, params);
+            // If key is missing, Node-RED returns the key itself -> treat as "not found"
+            return res === nsKey ? null : res;
+        };
+
+        const t = (key, params) =>
+            tr(`node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:${key}`, params)
+            || tr(`dwd-weatherwarnings:${key}`, params)
+            || tr(key, params)
+            || key;
+
         function setStatus(text, shape = "dot", color = "green") {
             if (!text) return node.status({});
             node.status({ fill: color, shape, text });
@@ -457,7 +470,7 @@ module.exports = function (RED) {
             done = done || ((err) => err && node.error(err, msg));
 
             try {
-                setStatus("lade…", "ring", "blue");
+                setStatus(t("runtime.statusLoading"), "ring", "blue");
 
                 // Filters aus msg überschreiben -> sonst node-config
                 const usedWarncellId = parseSingleWarncell(
@@ -511,15 +524,25 @@ module.exports = function (RED) {
 
                 if (logFn) logFn(`[DWD-Warnings] Alerts nach Filtern: ${alerts.length}`);
 
-                // Fallback auf last good, falls leer & staleAllow
+// Fallback auf last good, falls leer & staleAllow
+                let usedStaleFallback = false;
                 if (!alerts.length && usedStaleAllow && lastGoodPayload) {
                     if (logFn) logFn(`[DWD-Warnings] Keine Alerts → verwende stale fallback`);
-                    alerts = lastGoodPayload.payload || [];
-                    lastGoodPayload._meta.stale = true;
+                    alerts = lastGoodPayload.alerts || lastGoodPayload.payload || [];
+                    usedStaleFallback = true;
                 }
 
-                const preferLangPrefix = (msg.lang || "de").toLowerCase().startsWith("en") ? "en" : "de";
+                const editorLang = (RED.settings?.lang || "en-US").toLowerCase();
+                const preferLangPrefix =
+                    (msg.lang || editorLang).toLowerCase().startsWith("en") ? "en" : "de";
+
                 const pretty = buildPrettyOutput(alerts, usedWarncellId, preferLangPrefix);
+// --- Empty state UX ---
+                const noWarnings = alerts.length === 0;
+                if (noWarnings) {
+                    pretty.noWarnings = true;
+                    pretty.message = t("runtime.messageNoWarnings");
+                }
 
                 const out = {
                     payload: pretty,
@@ -529,7 +552,7 @@ module.exports = function (RED) {
                         fetchedAt: new Date().toISOString(),
 
                         // Laufzeitstatus
-                        stale: false,
+                        stale: usedStaleFallback,
                         total: alerts.length,
 
                         // Effektiv genutzte Filter/Flags
@@ -558,7 +581,12 @@ module.exports = function (RED) {
 
                 lastGoodPayload = JSON.parse(JSON.stringify(out));
 
-                setStatus(`${alerts.length} Meldungen`, "dot", "green");
+                if (alerts.length === 0) {
+                    setStatus(t("runtime.statusNone"), "dot", "green");
+                } else {
+                    setStatus(t("runtime.statusCount", { count: alerts.length }), "dot", "green");
+                }
+
                 send(out);
                 done();
             } catch (err) {
@@ -566,7 +594,7 @@ module.exports = function (RED) {
                     `DWD-Warnings Fehler: ${err && err.message ? err.message : String(err)}`,
                     err
                 );
-                setStatus("Fehler", "ring", "red");
+                setStatus(t("runtime.statusError"), "ring", "red");
                 done(err);
             }
         }
@@ -588,7 +616,7 @@ module.exports = function (RED) {
 
         scheduleRefresh();
         if (node.fetchOnDeploy) runFetch({}).catch(() => {});
-        else setStatus("bereit");
+        else setStatus(t("runtime.statusReady"));
     }
 
     RED.nodes.registerType("dwd-weatherwarnings", WarningsNode);

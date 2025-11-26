@@ -3,7 +3,7 @@
     <div class="form-row">
         <label for="node-input-name">
             <i class="fa fa-tag"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.name">Name</span>
+            <span data-i18n="label.name">Name</span>
         </label>
         <input type="text" id="node-input-name" placeholder="DWD Warnings">
     </div>
@@ -11,19 +11,19 @@
     <div class="form-row">
         <label for="node-input-warncells">
             <i class="fa fa-filter"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.warncells">Warncell-ID</span>
+            <span data-i18n="label.warncells">Warncell-ID</span>
         </label>
         <input type="text"
                id="node-input-warncells"
-               data-i18n="[placeholder]node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.warncellsPlaceholder"
+               data-i18n="[placeholder]ui.warncellsPlaceholder"
                placeholder="z. B. 105315000">
         <div class="form-tips">
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.warncellsTip">
+            <span data-i18n="ui.warncellsTip">
                 Filter auf eine spezifische WARNCELLID. Leer lassen = alle Meldungen.
             </span>
             <a href="https://www.dwd.de/DE/leistungen/opendata/help/warnungen/cap_warncellids_csv.html"
                target="_blank"
-               data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.warncellsLinkText">
+               data-i18n="ui.warncellsLinkText">
                 Liste der DWD Warncell-IDs anzeigen
             </a>
         </div>
@@ -34,15 +34,15 @@
     <div class="form-row">
         <label for="node-input-areaNameMatch">
             <i class="fa fa-map-marker"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.areaNameMatch">Name-Fallback</span>
+            <span data-i18n="label.areaNameMatch">Name-Fallback</span>
         </label>
         <input type="checkbox" id="node-input-areaNameMatch" style="width:auto;">
         <span style="margin-left:6px;"
-              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.areaNameMatchLabel">
+              data-i18n="ui.areaNameMatchLabel">
             Gebiets-Namensabgleich erlauben (areaDesc)
         </span>
         <div class="form-tips"
-             data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.areaNameMatchTip">
+             data-i18n="ui.areaNameMatchTip">
             Wenn aktiv und unten Namen angegeben sind, werden Warnungen zusätzlich behalten, wenn
             <code>areaDesc</code> einen der Namen enthält (Groß/Kleinschreibung egal).
         </div>
@@ -51,16 +51,16 @@
     <div class="form-row">
         <label for="node-input-extraAreaNames">
             <i class="fa fa-list"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.extraAreaNames">
+            <span data-i18n="label.extraAreaNames">
                 Zusätzliche Gebietsnamen
             </span>
         </label>
         <input type="text"
                id="node-input-extraAreaNames"
-               data-i18n="[placeholder]node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.extraAreaNamesPlaceholder"
+               data-i18n="[placeholder]ui.extraAreaNamesPlaceholder"
                placeholder="z. B. Köln, Düsseldorf, Bedburg">
         <div class="form-tips"
-             data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.extraAreaNamesTip">
+             data-i18n="ui.extraAreaNamesTip">
             Kommagetrennt. Beim Filtern wird Warncell-Match ODER Gebietsname in areaDesc verwendet.
         </div>
     </div>
@@ -70,17 +70,17 @@
     <div class="form-row">
         <label for="node-input-activeOnly">
             <i class="fa fa-clock-o"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.activeOnly">
+            <span data-i18n="label.activeOnly">
                 Nur aktive &amp; zukünftige
             </span>
         </label>
         <input type="checkbox" id="node-input-activeOnly" style="width:auto;">
         <span style="margin-left:6px;"
-              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.activeOnlyLabel">
+              data-i18n="ui.activeOnlyLabel">
             Nur aktive &amp; zukünftige Warnungen
         </span>
         <div class="form-tips"
-             data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.activeOnlyTip">
+             data-i18n="ui.activeOnlyTip">
             Wenn aktiv, enthält die Ausgabe nur Meldungen, die aktuell laufen oder in der Zukunft liegen.
         </div>
     </div>
@@ -88,17 +88,17 @@
     <div class="form-row">
         <label for="node-input-staleAllow">
             <i class="fa fa-hourglass-half"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.staleAllow">
+            <span data-i18n="label.staleAllow">
                 Stale erlauben
             </span>
         </label>
         <input type="checkbox" id="node-input-staleAllow" style="width:auto;">
         <span style="margin-left:6px;"
-              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.staleAllowLabel">
+              data-i18n="ui.staleAllowLabel">
             Bei XML-/HTTP-Fehlern letzten erfolgreichen Stand liefern
         </span>
         <div class="form-tips"
-             data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.staleAllowTip">
+             data-i18n="ui.staleAllowTip">
             Erlaube Fallback auf die neueste Datei aus dem Verzeichnis, wenn <code>_LATEST_</code> 404 liefert.
             Ist diese Option <b>aus</b>, bricht der Node in diesem Fall mit Fehler ab.
         </div>
@@ -107,7 +107,7 @@
     <div class="form-row">
         <label for="node-input-autoRefresh">
             <i class="fa fa-refresh"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.autoRefresh">
+            <span data-i18n="label.autoRefresh">
                 Auto-Refresh (Sek.)
             </span>
         </label>
@@ -117,7 +117,7 @@
                step="1"
                placeholder="0 = aus">
         <div class="form-tips"
-             data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.autoRefreshTip">
+             data-i18n="ui.autoRefreshTip">
             Intervall für automatische Abrufe in Sekunden. 0 = deaktiviert.
         </div>
     </div>
@@ -125,13 +125,13 @@
     <div class="form-row">
         <label for="node-input-fetchOnDeploy">
             <i class="fa fa-bolt"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.fetchOnDeploy">
+            <span data-i18n="label.fetchOnDeploy">
                 Beim Deploy abrufen
             </span>
         </label>
         <input type="checkbox" id="node-input-fetchOnDeploy" style="width:auto;">
         <span style="margin-left:6px;"
-              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.fetchOnDeployTip">
+              data-i18n="ui.fetchOnDeployTip">
             Direkten Datenabruf bei Deploy aktivieren
         </span>
     </div>
@@ -139,13 +139,13 @@
     <div class="form-row">
         <label for="node-input-diag">
             <i class="fa fa-bug"></i>
-            <span data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.diag">
+            <span data-i18n="label.diag">
                 Diagnose-Logs
             </span>
         </label>
         <input type="checkbox" id="node-input-diag" style="width:auto;">
         <span style="margin-left:6px;"
-              data-i18n="node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:ui.diagTip">
+              data-i18n="ui.diagTip">
             Zusätzliche Protokollierung im Node-RED-Log aktivieren.
         </span>
     </div>
@@ -186,9 +186,7 @@
             outputs: 1,
 
             label: function () {
-                return this.name
-                    || RED._("node-red-contrib-dwd-weatherwarnings/dwd-weatherwarnings:label.defaultName")
-                    || "DWD Weather Warnings";
+                return this.name || this._("label.defaultName");
             },
 
             labelStyle: function () {

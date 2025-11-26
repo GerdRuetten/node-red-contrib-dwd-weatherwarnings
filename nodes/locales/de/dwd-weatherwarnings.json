@@ -51,8 +51,11 @@
     "statusOk": "__count__ Meldungen",
     "statusError": "Fehler",
     "statusStale": "veraltet (__count__ Meldungen)",
-
     "errorStaleNotAllowed": "Stale-Daten sind nicht erlaubt (LATEST 404 → Verzeichnis-Fallback).",
-    "errorFetch": "Fehler beim Abrufen der DWD-Warnungen: __error__"
+    "errorFetch": "Fehler beim Abrufen der DWD-Warnungen: __error__",
+    "statusNone": "keine Meldungen",
+    "statusCount": "__count__  Meldungen",
+    "messageNoWarnings": "Keine aktuellen Warnwetter-Meldungen für diese Warncell."
+
   }
 }

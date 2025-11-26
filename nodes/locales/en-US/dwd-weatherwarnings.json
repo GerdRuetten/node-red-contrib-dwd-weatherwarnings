@@ -51,6 +51,9 @@
     "statusOk": "__count__ warnings",
     "statusError": "error",
     "statusStale": "stale (__count__ warnings)",
+    "statusNone": "no warnings",
+    "statusCount": "__count__ warnings",
+    "messageNoWarnings": "No active DWD weather warnings for this warncell.",
 
     "errorStaleNotAllowed": "Stale data not allowed (LATEST 404 → directory fallback).",
     "errorFetch": "Error fetching DWD warnings: __error__"
